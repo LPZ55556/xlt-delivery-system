@@ -1,0 +1,44 @@
+# env
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+!.env.example
+
+# secrets
+*本地填写版*
+*勿提交*
+frpc.toml
+frps.toml
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# node
+node_modules/
+dist/
+build/
+.next/
+.expo/
+android/.gradle/
+ios/Pods/
+
+# logs
+*.log
+logs/
+
+# database backup
+*.sql
+*.dump
+*.backup
+
+# system
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

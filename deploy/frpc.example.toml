@@ -1,0 +1,19 @@
+serverAddr = "42.121.105.101"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "change_me"
+
+[[proxies]]
+name = "delivery-api"
+type = "http"
+localIP = "127.0.0.1"
+localPort = 3000
+customDomains = ["api.lnize.top"]
+
+[[proxies]]
+name = "delivery-admin"
+type = "http"
+localIP = "127.0.0.1"
+localPort = 3001
+customDomains = ["admin.lnize.top"]
