@@ -65,6 +65,15 @@ POST /api/first-run-setup
 
 首次初始化会创建超级管理员、保存管理员密码 hash、保存进价查看安全密码 hash，并写入审计日志。初始化完成后会拒绝再次初始化。
 
+认证接口：
+
+```text
+POST /api/auth/login
+GET  /api/auth/me
+```
+
+登录接口会校验 bcrypt 密码并签发 JWT，响应中的用户对象不会返回 `passwordHash`。登录成功和失败都会写入审计日志。
+
 ## Docker Compose
 
 开发环境：
@@ -97,8 +106,9 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 - 初始化 NestJS API 骨架与 `/api/health` 健康检查。
 - 完成 Prisma schema 与初始迁移文件。
 - 预留 PostgreSQL/Prisma 与 Redis 配置读取。
-- 预留 auth、users、products、merchants、orders、reports、locations、audit-logs 模块。
+- 预留 users、products、merchants、orders、reports、locations、audit-logs 模块。
 - 完成首次初始化最小闭环：管理员账号、管理员密码 hash、进价查看安全密码 hash、初始化关闭、审计日志。
+- 完成基础登录接口：bcrypt 密码校验、JWT 签发、当前用户查询、登录审计。
 - 初始化 Web 后台页面骨架，并让首次初始化页可以提交 API。
 - 初始化 React Native Android App 骨架，包含首页、底部导航、中间加大的“开单”按钮、登录、开单、扫码、商户选择、今日轨迹占位。
 - 创建共享类型和金额工具，占位采用 decimal string / minor units 思路，避免 float 直接计算金额。
@@ -107,14 +117,14 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 
 ## 当前阶段占位内容
 
-- 登录认证、JWT、权限控制仍为模块占位。
+- 角色权限守卫仍为占位，登录认证和 JWT 签发已有最小实现。
 - 商品、商户、订单、报表、轨迹和审计日志接口目前只返回占位响应。
 - App 暂不接入高德地图、扫码、蓝牙打印和离线同步，只预留页面和配置入口。
 
 ## 下一阶段建议任务
 
-1. 实现登录认证、JWT 守卫、角色和权限模型。
+1. 实现 JWT 守卫、角色和权限模型。
 2. 实现商品、商户、订单基础 CRUD，并确保 App 开单不返回商品进价。
 3. 接入审计日志，覆盖进价查看、订单修改、订单作废和删除操作。
-4. 为 Web 后台接入 API 状态检测与首次初始化跳转逻辑。
+4. 为 Web 后台接入 API 状态检测、登录态和首次初始化跳转逻辑。
 5. 完善 Android 构建环境并验证 debug APK。
