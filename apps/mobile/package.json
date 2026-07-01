@@ -1,0 +1,23 @@
+{
+  "name": "@xlt/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "start": "react-native start",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo Android build requires Android SDK/Gradle environment",
+    "lint": "echo mobile lint placeholder"
+  },
+  "dependencies": {
+    "@xlt/shared": "workspace:*",
+    "react": "18.3.1",
+    "react-native": "0.75.4"
+  },
+  "devDependencies": {
+    "@react-native-community/cli": "^15.0.1",
+    "@react-native-community/cli-platform-android": "^15.0.1",
+    "@types/react": "^18.3.11",
+    "typescript": "^5.6.3"
+  }
+}

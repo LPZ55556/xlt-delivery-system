@@ -1,0 +1,17 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "com.facebook.react"
+}
+
+android {
+    namespace "com.xlt.delivery"
+    compileSdk 35
+    defaultConfig {
+        applicationId "com.xlt.delivery"
+        minSdkVersion 23
+        targetSdkVersion 35
+        versionCode 1
+        versionName "0.1.0"
+    }
+}

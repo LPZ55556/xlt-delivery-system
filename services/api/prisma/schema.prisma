@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  super_admin
+  admin
+  finance
+  warehouse
+  salesperson
+}
+
+enum OrderStatus {
+  created
+  printed
+  synced
+  voided
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  role         UserRole
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Product {
+  id                String   @id @default(uuid())
+  name              String
+  barcode           String   @unique
+  category          String?
+  spec              String?
+  salePrice         Decimal  @db.Decimal(12, 2)
+  costPrice         Decimal? @db.Decimal(12, 2)
+  stock             Int      @default(0)
+  stockWarningValue Int?
+  enabled           Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Merchant {
+  id                   String   @id @default(uuid())
+  name                 String
+  contactName          String?
+  phone                String?
+  address              String
+  latitude             Decimal? @db.Decimal(10, 7)
+  longitude            Decimal? @db.Decimal(10, 7)
+  region               String?
+  defaultSalespersonId String?
+  remark               String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  orderNo       String      @unique
+  merchantId    String
+  salespersonId String
+  totalAmount   Decimal     @db.Decimal(12, 2)
+  status        OrderStatus @default(created)
+  printed       Boolean     @default(false)
+  synced        Boolean     @default(false)
+  latitude      Decimal?    @db.Decimal(10, 7)
+  longitude     Decimal?    @db.Decimal(10, 7)
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id                   String  @id @default(uuid())
+  orderId              String
+  order                Order   @relation(fields: [orderId], references: [id])
+  productId            String
+  productNameSnapshot  String
+  productSpecSnapshot  String?
+  salePriceSnapshot    Decimal @db.Decimal(12, 2)
+  quantity             Int
+  subtotalSnapshot     Decimal @db.Decimal(12, 2)
+}
+
+model FirstRunSetupState {
+  id                    String   @id @default(uuid())
+  completed             Boolean  @default(false)
+  completedAt           DateTime?
+  costPricePasswordHash String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  ipAddress  String?
+  deviceInfo String?
+  success    Boolean  @default(true)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
