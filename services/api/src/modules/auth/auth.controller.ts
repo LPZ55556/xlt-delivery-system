@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Headers, Ip, Post } from '@nestjs/common';
+import { CurrentUser, type RequestUser } from '../../common/auth/current-user.decorator';
+import { Public } from '../../common/auth/public.decorator';
 import type { LoginRequest } from './dto';
 import { AuthService } from './auth.service';
 
@@ -6,6 +8,7 @@ import { AuthService } from './auth.service';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  @Public()
   @Post('login')
   login(
     @Body() body: LoginRequest,
@@ -16,7 +19,7 @@ export class AuthController {
   }
 
   @Get('me')
-  getMe(@Headers('authorization') authorization?: string) {
-    return this.auth.getCurrentUser(authorization);
+  getMe(@CurrentUser() user: RequestUser) {
+    return { user };
   }
 }

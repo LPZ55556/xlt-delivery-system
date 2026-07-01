@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Public } from '../common/auth/public.decorator';
 
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly config: ConfigService) {}

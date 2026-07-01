@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Ip, Post, Headers } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Ip, Post } from '@nestjs/common';
+import { Public } from '../../common/auth/public.decorator';
 import type { FirstRunSetupRequest } from './dto';
 import { FirstRunSetupService } from './first-run-setup.service';
 
+@Public()
 @Controller('first-run-setup')
 export class FirstRunSetupController {
   constructor(private readonly service: FirstRunSetupService) {}

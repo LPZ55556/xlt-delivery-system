@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
+import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
@@ -23,6 +26,7 @@ import { UsersModule } from './modules/users/users.module';
       envFilePath: ['.env', '../../.env', '../../.env.example'],
       load: [appConfig, databaseConfig, redisConfig],
     }),
+    JwtModule.register({}),
     DatabaseModule,
     RedisModule,
     HealthModule,
@@ -35,6 +39,12 @@ import { UsersModule } from './modules/users/users.module';
     LocationsModule,
     AuditLogsModule,
     FirstRunSetupModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule {}
