@@ -45,3 +45,7 @@ Thumbs.db
 
 # typescript
 *.tsbuildinfo
+
+# Prisma migrations are schema history, not database backups.
+!services/api/prisma/migrations/
+!services/api/prisma/migrations/**/*.sql
