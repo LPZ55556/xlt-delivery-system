@@ -76,10 +76,9 @@ Ubuntu 服务端局域网 IP：192.168.31.128
 
 Ubuntu 服务端 SSH 地址：192.168.31.128
 
-Ubuntu 服务端 SSH 用户： root
+Ubuntu 服务端 SSH 用户：root
 
 SSH 密码：Aa12345678
-
 
 Docker 是否已安装：否，需要安装
 
