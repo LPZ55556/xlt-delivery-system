@@ -1,3 +1,393 @@
-# 配置清单
+# 智慧配送解决方案开发前配置清单（修订版）
 
-此文件后续替换为《智慧配送解决方案_配置清单_修订版.txt》的内容。
+> 本修订版按“四台设备分工”整理：Windows 控制机、Ubuntu 开发机、Ubuntu 服务端、阿里云穿透端。
+> 明文密码、frp token、数据库密码、JWT 密钥、高德 Key 等敏感内容已从正文移除，统一通过 `.env` / 环境变量配置。
+> 真实 `.env` 文件不要提交 GitHub；只提交 `.env.example`。
+
+---
+
+## 1. 项目基础信息
+
+项目名称：智慧配送解决方案
+
+GitHub 仓库地址：暂未创建
+
+主要开发方式：Codex 通过 SSH 连接 Ubuntu 开发机进行开发；Ubuntu 服务端负责部署运行；Windows 只作为控制机。
+
+技术栈要求：
+
+* 手机端：React Native
+* Web 后台：Next.js / React
+* 后端：NestJS
+* 数据库：PostgreSQL
+* 缓存：Redis
+* 部署方式：Ubuntu 服务端 + frpc + 阿里云 frps
+* 部署管理：Docker Compose
+* 代码管理：GitHub
+
+---
+
+## 2. 四台设备分工
+
+### 2.1 Windows 控制机
+
+用途：打开 Codex、SSH、浏览器、GitHub，不保存项目源码和开发依赖。
+
+Windows 是否保存项目文件：否
+
+Windows 是否运行数据库/后端/Web：否
+
+---
+
+### 2.2 Ubuntu 开发机
+
+用途：Codex SSH 连接这台机器进行开发、测试、构建。
+
+Ubuntu 开发机系统：Ubuntu 22.04
+
+Ubuntu 开发机局域网 IP：192.168.31.129
+
+Ubuntu 开发机 SSH 地址：192.168.31.129
+
+Ubuntu 开发机 SSH 用户：root
+
+root密码：Aa12345678
+
+项目源码目录建议：/home/dev/projects/delivery-system
+
+需要安装：
+
+* Git
+* Node.js LTS
+* Docker
+* Docker Compose
+* Android SDK / Android Studio 或命令行构建环境
+* Codex 远程开发所需环境
+
+---
+
+### 2.3 Ubuntu 服务端
+
+用途：实际运行系统，承载 API、Web 后台、PostgreSQL、Redis、frpc。
+
+Ubuntu 服务端系统：Ubuntu 22.04
+
+Ubuntu 服务端局域网 IP：192.168.31.128
+
+Ubuntu 服务端 SSH 地址：192.168.31.128
+
+Ubuntu 服务端 SSH 用户： root
+
+SSH 密码：Aa12345678
+
+
+Docker 是否已安装：否，需要安装
+
+Docker Compose 是否可用：未安装，需要安装
+
+Node.js 是否已安装：否，使用 Docker Compose 部署时服务端可不单独安装
+
+Git 是否已安装：是
+
+---
+
+### 2.4 阿里云穿透端
+
+用途：只运行 frps，不部署业务后端、不部署数据库、不部署 Web 后台。
+
+阿里云 ECS 用途：仅作为 FRP 公网穿透入口
+
+业务代码是否部署在阿里云：否
+
+数据库是否部署在阿里云：否
+
+Web 后台是否部署在阿里云：否
+
+---
+
+## 3. 阿里云 FRP 服务端信息
+
+说明：阿里云服务器只作为 frps 使用，不部署业务后端、不部署数据库、不部署 Web 后台。
+
+frps 是否已配置完成：是
+
+frps 公网地址：42.121.105.101
+
+frps 通信端口：7000
+
+frps token 是否已准备：是，通过环境变量 FRP_TOKEN / 本地 frpc.toml 填写，真实 token 不写入代码仓库
+
+frps 是否开启 HTTP 类型代理：是
+
+frps HTTP vhost 端口：8080
+
+frps 是否开启 HTTPS 类型代理：否，开发验证阶段暂不启用
+
+frps HTTPS vhost 端口：未配置
+
+frps dashboard 是否开启：是，仅阿里云服务器本机可访问
+
+frps dashboard 是否禁止公网访问：是，webServer.addr 已设置为 127.0.0.1
+
+---
+
+## 4. 域名信息
+
+主域名：lnize.top
+
+API 域名：api.lnize.top
+
+Web 后台域名：admin.lnize.top
+
+是否暂时不用域名，只用公网 IP + 端口：否，使用域名访问；当前 frps HTTP vhost 端口为 8080，访问时需要带 :8080。
+
+DNS 解析记录：
+
+api.lnize.top → 阿里云 ECS 公网 IP 42.121.105.101
+
+admin.lnize.top → 阿里云 ECS 公网 IP 42.121.105.101
+
+当前访问地址：
+
+App 请求 API 地址：http://api.lnize.top:8080
+
+Web 后台访问地址：http://admin.lnize.top:8080
+
+后续正式测试建议升级为：
+
+API：https://api.lnize.top
+
+Web 后台：https://admin.lnize.top
+
+---
+
+## 5. 阿里云安全组开放端口
+
+frps 通信端口：7000
+
+HTTP 访问端口：8080
+
+HTTPS 访问端口：暂不开放，开发验证阶段未启用 HTTPS
+
+是否开放 frps dashboard 端口：否，不开放 7500；dashboard 仅允许阿里云服务器本机访问
+
+是否开放本地 SSH 穿透端口：否，暂不开放
+
+备注：
+
+* PostgreSQL 5432 不允许开放到公网
+* Redis 6379 不允许开放到公网
+* frps dashboard 7500 不允许开放到公网
+* 后续如启用 HTTPS，再开放 443
+
+---
+
+## 6. Ubuntu 服务端本地服务端口规划
+
+后端 API 本地端口：3000
+
+Web 后台本地端口：3001
+
+PostgreSQL 本地端口：5432
+
+Redis 本地端口：6379
+
+frpc 是否运行在 Docker 中：是，后续使用 Docker Compose 管理
+
+---
+
+## 7. 对外访问地址
+
+App 请求 API 地址：http://api.lnize.top:8080
+
+Web 后台访问地址：http://admin.lnize.top:8080
+
+开发测试 API 地址：http://api.lnize.top:8080
+
+正式测试 API 地址：暂未配置 HTTPS，后续建议改为 https://api.lnize.top
+
+---
+
+## 8. frpc 客户端配置参数
+
+frpc 部署位置：Ubuntu 服务端
+
+frpc 连接的 frps 地址：42.121.105.101
+
+frpc 连接的 frps 端口：7000
+
+frpc token：通过环境变量 FRP_TOKEN / 本地 frpc.toml 填写，真实 token 不写入项目文档和代码仓库
+
+API 代理类型：http
+
+API 本地地址：127.0.0.1
+
+API 本地端口：3000
+
+API 对外域名：api.lnize.top
+
+Web 后台代理类型：http
+
+Web 后台本地地址：127.0.0.1
+
+Web 后台本地端口：3001
+
+Web 后台对外域名：admin.lnize.top
+
+对应关系：
+
+http://api.lnize.top:8080 → Ubuntu 服务端 127.0.0.1:3000
+
+http://admin.lnize.top:8080 → Ubuntu 服务端 127.0.0.1:3001
+
+---
+
+## 9. 数据库配置
+
+数据库类型：PostgreSQL
+
+数据库名：delivery_db
+
+数据库用户：delivery_user
+
+数据库密码：通过环境变量 POSTGRES_PASSWORD 配置，真实密码不写入项目文档和代码仓库
+
+数据库连接地址：通过环境变量 DATABASE_URL 配置
+
+示例：postgresql://delivery_user:${POSTGRES_PASSWORD}@postgres:5432/delivery_db
+
+是否只允许本地访问：是，只允许 Ubuntu 服务端上的后端 API 访问，不开放到公网
+
+是否需要自动备份：需要，开发验证阶段每日备份一次；正式使用时建议增加定时备份和异地备份
+
+---
+
+## 10. Redis 配置
+
+Redis 地址：redis
+
+Redis 端口：6379
+
+Redis 密码：通过环境变量 REDIS_PASSWORD 配置，开发验证阶段可暂不设置；正式测试前建议设置密码
+
+是否只允许本地访问：是，只允许 Ubuntu 服务端上的后端 API 访问，不开放到公网
+
+---
+
+## 11. App 端配置
+
+Android App 包名：com.xlt.delivery
+
+App 名称：小灵通
+
+API_BASE_URL：http://api.lnize.top:8080
+
+是否接入高德地图：是，用于定位、到店确认、配送轨迹展示
+
+高德 Android Key：通过环境变量 AMAP_ANDROID_KEY 或构建配置注入，真实 Key 不写入项目文档和代码仓库
+
+是否启用扫码：是，使用手机摄像头扫描商品条码
+
+是否启用蓝牙打印：是，支持连接随身热敏打印机打印小票
+
+热敏打印机品牌：待确定
+
+打印纸规格：待确定，常见为 58mm 或 80mm
+
+---
+
+## 12. Web 后台配置
+
+后台名称：小灵通管理后台
+
+后台访问地址：http://admin.lnize.top:8080
+
+管理员默认账号：通过环境变量 ADMIN_INITIAL_USERNAME 配置
+
+管理员默认密码：通过环境变量 ADMIN_INITIAL_PASSWORD 配置，初始化后必须强制修改
+
+管理员默认密码是否初始化后强制修改：是
+
+是否允许外网访问后台：开发验证阶段允许；正式使用时建议加登录限制、强密码、操作日志，必要时增加 IP 白名单
+
+是否需要后台 IP 白名单：开发验证阶段暂不启用；正式使用前根据使用场景决定
+
+---
+
+## 13. 安全要求
+
+是否使用 HTTPS：开发验证阶段暂不使用；正式测试前建议启用 HTTPS
+
+JWT_SECRET 是否已准备：通过环境变量 JWT_SECRET 配置
+
+进价查看安全密码是否已准备：通过环境变量 COST_PRICE_VIEW_PASSWORD 或 COST_PRICE_VIEW_PASSWORD_HASH 配置
+
+frp token 是否不写入代码仓库：是
+
+数据库密码是否不写入代码仓库：是
+
+高德 Key 是否不写入代码仓库：是
+
+.env 是否加入 .gitignore：是
+
+是否禁止公网访问 PostgreSQL：是
+
+是否禁止公网访问 Redis：是
+
+是否记录进价查看日志：是
+
+是否记录订单修改日志：是
+
+是否记录登录和权限相关操作日志：是
+
+是否禁止 root 用户作为长期部署用户：建议禁止，后续创建 deploy 用户
+
+---
+
+## 14. 给 Codex 的说明
+
+本项目采用四设备分工：
+
+1. Windows 控制机
+只用于打开 Codex、SSH 和浏览器，不保存项目代码。
+
+2. Ubuntu 开发机
+Codex 通过 SSH 连接这台机器进行开发。项目源码、依赖安装、代码修改、测试、Android 构建都在这台机器上完成。
+
+3. Ubuntu 服务端
+用于部署运行系统。运行 NestJS API、Next.js Web 后台、PostgreSQL、Redis 和 frpc。外部用户通过阿里云 frps 穿透访问这台服务端。
+
+4. 阿里云穿透端
+只运行 frps，不部署业务代码、不部署数据库、不部署 Web 后台。
+
+项目需要提供：
+
+1. docker-compose.yml
+2. docker-compose.dev.yml
+3. docker-compose.prod.yml
+4. .env.example
+5. frpc.example.toml
+6. 本地服务器部署说明
+7. API_BASE_URL 配置项
+8. 数据库连接配置项
+9. Redis 配置项
+10. 数据库备份脚本 backup-db.sh
+11. 数据库恢复脚本 restore-db.sh
+
+不要在代码中写死公网 IP、frp token、数据库密码、JWT 密钥、高德 Key。
+
+---
+
+## 15. 迁移要求
+
+项目后期需要支持迁移到其他设备部署，因此必须满足：
+
+* 代码放 GitHub
+* 配置放 .env，不写死在代码里
+* 服务用 Docker Compose 管理
+* 数据库可通过备份和恢复脚本迁移
+* frpc 配置提供 example 模板
+* PostgreSQL 和 Redis 不开放公网
+* App 端 API 地址通过配置项管理
+* Web 后台地址通过配置项管理
+* 开发环境和部署环境分离
