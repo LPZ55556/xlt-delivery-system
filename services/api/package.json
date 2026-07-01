@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo api lint placeholder",
     "prisma:generate": "prisma generate",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "test:integration": "node scripts/integration-test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.7",

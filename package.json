@@ -9,7 +9,8 @@
     "dev:web": "pnpm --filter @xlt/web-admin dev",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "test:integration": "pnpm --filter @xlt/api test:integration"
   },
   "engines": {
     "node": ">=20.11.0",

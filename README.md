@@ -88,6 +88,57 @@ POST   /api/products/:id/cost-price-verification
 
 商品列表和详情默认不返回进价。查看进价需要 `super_admin`、`admin` 或 `finance` 角色，并且必须输入首次初始化时设置的进价查看安全密码。查看成功和失败都会写入审计日志。
 
+商户接口当前最小实现：
+
+```text
+GET    /api/merchants?page=1&pageSize=20&search=关键词
+GET    /api/merchants/:id
+POST   /api/merchants
+PATCH  /api/merchants/:id
+DELETE /api/merchants/:id
+```
+
+商户删除为停用，不做物理删除。商户列表默认只返回启用商户，支持基础分页和名称搜索。`super_admin` / `admin` 可以创建、编辑、停用商户；`salesperson`、`finance`、`warehouse` 可以读取商户信息。
+
+订单接口当前最小实现：
+
+```text
+POST  /api/orders
+GET   /api/orders?page=1&pageSize=20
+GET   /api/orders/:id
+GET   /api/orders/:id/receipt
+PATCH /api/orders/:id/void
+```
+
+订单创建规则：
+
+1. 必须登录。
+2. `merchantId` 必须存在且商户启用。
+3. `items` 不能为空。
+4. `productId` 必须存在且商品启用。
+5. `quantity` 必须为大于 0 的整数。
+6. 商品价格以后端数据库中的 `salePrice` 为准，不信任前端传入价格。
+7. 订单主表、订单明细和审计日志在同一个数据库事务中写入。
+8. 订单总金额由后端使用 Decimal 计算，响应固定两位小数。
+9. 当前阶段预留库存扣减，未实际扣减库存。
+
+订单明细快照规则：
+
+- 保存商品名称快照 `productNameSnapshot`。
+- 保存商品条码快照 `productBarcodeSnapshot`。
+- 保存商品规格快照 `productSpecSnapshot`。
+- 保存销售价快照 `salePriceSnapshot`。
+- 保存数量和小计，避免商品后续改价影响历史订单。
+
+订单安全规则：
+
+- 订单和小票接口严禁返回 `costPrice`。
+- `super_admin` / `admin` / `finance` 可以查看全部订单。
+- `salesperson` 只能查看自己的订单。
+- 作废订单仅允许 `super_admin` / `admin`，并写入审计日志。
+- 创建订单和作废订单都会写入审计日志。
+
+
 
 ## Docker Compose
 
@@ -121,11 +172,13 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 - 初始化 NestJS API 骨架与 `/api/health` 健康检查。
 - 完成 Prisma schema 与初始迁移文件。
 - 预留 PostgreSQL/Prisma 与 Redis 配置读取。
-- 预留 users、merchants、orders、reports、locations、audit-logs 模块。
+- 预留 users、reports、locations、audit-logs 模块。
 - 完成首次初始化最小闭环：管理员账号、管理员密码 hash、进价查看安全密码 hash、初始化关闭、审计日志。
 - 完成基础登录接口：bcrypt 密码校验、JWT 签发、当前用户查询、登录审计。
 - 增加全局 JWT Guard、`@Public()`、`@Roles()` 和 `@CurrentUser()` 基础设施，业务接口默认需要登录。
 - 实现商品管理最小 CRUD，普通查询不返回进价，进价查看需要角色权限、安全密码和审计日志。
+- 实现商户管理最小 CRUD，支持分页、搜索、启用过滤和软停用。
+- 实现订单开单最小闭环，包含事务创建、商品快照、金额计算、订单列表/详情、作废和小票数据接口。
 - 初始化 Web 后台页面骨架，并让首次初始化页可以提交 API。
 - 初始化 React Native Android App 骨架，包含首页、底部导航、中间加大的“开单”按钮、登录、开单、扫码、商户选择、今日轨迹占位。
 - 创建共享类型和金额工具，占位采用 decimal string / minor units 思路，避免 float 直接计算金额。
@@ -135,13 +188,13 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 ## 当前阶段占位内容
 
 - 角色权限细粒度策略仍为占位，JWT Guard 和角色元数据基础设施已有最小实现。
-- 商户、订单、报表、轨迹和审计日志接口目前只返回占位响应。
+- 报表、轨迹和审计日志接口目前只返回占位响应。
 - App 暂不接入高德地图、扫码、蓝牙打印和离线同步，只预留页面和配置入口。
 
 ## 下一阶段建议任务
 
 1. 细化角色和权限模型，将 `@Roles()` 应用到后台敏感接口。
-2. 实现商户、订单基础 CRUD，并确保 App 开单接口继续不返回商品进价。
-3. 接入审计日志，覆盖进价查看、订单修改、订单作废和删除操作。
-4. 为 Web 后台接入 API 状态检测、登录态和首次初始化跳转逻辑。
+2. App 开单页面接入商户、商品和订单 API。
+3. Web 后台接入商户/订单页面，补齐表格、筛选和详情视图。
+4. 实现用户管理和配送员账号创建流程。
 5. 完善 Android 构建环境并验证 debug APK。

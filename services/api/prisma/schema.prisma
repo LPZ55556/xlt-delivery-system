@@ -56,9 +56,10 @@ model Merchant {
   address              String
   latitude             Decimal? @db.Decimal(10, 7)
   longitude            Decimal? @db.Decimal(10, 7)
-  region               String?
+  area                 String?
   defaultSalespersonId String?
   remark               String?
+  isActive             Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -74,21 +75,25 @@ model Order {
   synced        Boolean     @default(false)
   latitude      Decimal?    @db.Decimal(10, 7)
   longitude     Decimal?    @db.Decimal(10, 7)
+  remark        String?
+  voidedAt      DateTime?
+  voidReason    String?
   items         OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
 
 model OrderItem {
-  id                   String  @id @default(uuid())
-  orderId              String
-  order                Order   @relation(fields: [orderId], references: [id])
-  productId            String
-  productNameSnapshot  String
-  productSpecSnapshot  String?
-  salePriceSnapshot    Decimal @db.Decimal(12, 2)
-  quantity             Int
-  subtotalSnapshot     Decimal @db.Decimal(12, 2)
+  id                     String  @id @default(uuid())
+  orderId                String
+  order                  Order   @relation(fields: [orderId], references: [id])
+  productId              String
+  productNameSnapshot    String
+  productBarcodeSnapshot String
+  productSpecSnapshot    String?
+  salePriceSnapshot      Decimal @db.Decimal(12, 2)
+  quantity               Int
+  subtotalSnapshot       Decimal @db.Decimal(12, 2)
 }
 
 model FirstRunSetupState {
