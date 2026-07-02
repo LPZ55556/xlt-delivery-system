@@ -57,3 +57,7 @@ apps/mobile/android/local.properties
 local.properties
 *.apk
 *.aab
+apps/mobile/.env
+apps/mobile/android/app/src/main/assets/index.android.bundle
+apps/mobile/android/app/src/main/res/drawable-*/node_modules*
+apps/mobile/android/app/src/main/res/raw/node_modules*

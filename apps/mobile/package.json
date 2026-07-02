@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
+    "android": "ANDROID_HOME=${ANDROID_HOME:-/opt/android-sdk} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-/opt/android-sdk} PATH=${ANDROID_HOME:-/opt/android-sdk}/platform-tools:${PATH} react-native run-android",
     "start": "react-native start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "pnpm run build:android:debug",
     "lint": "echo mobile lint placeholder",
-    "build:android:debug": "cd android && ./gradlew assembleDebug",
+    "build:android:debug": "cd android && ANDROID_HOME=${ANDROID_HOME:-/opt/android-sdk} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-/opt/android-sdk} PATH=${ANDROID_HOME:-/opt/android-sdk}/platform-tools:${PATH} ./gradlew assembleDebug",
     "clean:android": "cd android && ./gradlew clean",
-    "start:reset-cache": "react-native start --reset-cache"
+    "start:reset-cache": "react-native start --reset-cache",
+    "build:android:standalone": "cd android && ANDROID_HOME=${ANDROID_HOME:-/opt/android-sdk} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-/opt/android-sdk} PATH=${ANDROID_HOME:-/opt/android-sdk}/platform-tools:${PATH} ./gradlew assembleStandalone"
   },
   "dependencies": {
     "@babel/runtime": "^7.25.0",

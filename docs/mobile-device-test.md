@@ -90,3 +90,90 @@ curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=fal
 ```
 
 如果返回 500，再查看响应正文。pnpm monorepo 中常见原因是移动端缺少直接依赖，例如 `@babel/runtime` 没有在 `apps/mobile/package.json` 中声明。当前 mobile 已显式依赖 `@babel/runtime`，用于保证 Metro 可以解析 Babel helper。
+
+## 8. 推荐真机测试顺序
+
+建议先测试 standalone APK，再测试 debug APK：
+
+1. 构建并安装 standalone APK，确认不启动 Metro 也能打开 App。
+2. 启动 Metro，配置 `adb reverse`，再安装 debug APK。
+3. 最后使用 Web 后台创建的配送员账号测试登录和开单。
+
+standalone APK：
+
+```bash
+cd /home/projects/xlt-delivery-system
+pnpm --filter @xlt/mobile build:android:standalone
+adb install -r apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+adb shell am force-stop com.xlt.delivery
+adb shell am start -n com.xlt.delivery/.MainActivity
+```
+
+debug APK：
+
+```bash
+cd /home/projects/xlt-delivery-system/apps/mobile
+pnpm start -- --reset-cache
+```
+
+另开终端：
+
+```bash
+cd /home/projects/xlt-delivery-system
+pnpm --filter @xlt/mobile build:android:debug
+./scripts/mobile-debug-android.sh
+```
+
+如果曾经在 Dev Settings 中配置过错误的调试服务器，可使用 `CLEAR_APP_DATA=1 ./scripts/mobile-debug-android.sh` 只清理 `com.xlt.delivery` 后重装启动。
+
+## 9. debug 红屏无法连接 Metro
+
+如果红屏显示 `Could not connect to development server`，说明 debug APK 没有连上 Metro。按顺序检查：
+
+```bash
+adb devices -l
+adb reverse --remove-all
+adb reverse tcp:8081 tcp:8081
+adb reverse --list
+curl http://127.0.0.1:8081/status
+curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false&app=com.xlt.delivery'
+```
+
+`curl /status` 应返回 `packager-status:running`，bundle 接口应返回 `200`。debug APK 和当前 HTTP 开发 API 需要 Android 允许明文 HTTP；Manifest 已设置 `android:usesCleartextTraffic="true"`。后续生产环境切换 HTTPS 后应收紧该策略。如果设备曾在 Dev Settings 中设置过调试服务器 IP，必要时只清理当前 App 数据：
+
+```bash
+adb shell pm clear com.xlt.delivery
+```
+
+如果 USB reverse 不可用，可在 Dev Settings 中设置 `192.168.31.129:8081` 这类开发机地址，实际 IP 以 Ubuntu 开发机当前地址为准，不要写入业务代码。
+
+## 10. standalone APK 说明
+
+standalone APK 通过以下命令生成：
+
+```bash
+pnpm --filter @xlt/mobile build:android:standalone
+```
+
+生成路径：
+
+```text
+apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+```
+
+该 APK 内置 JS bundle，安装后不需要 Metro，不需要 `adb reverse`，也不应访问 `localhost:8081/index.bundle`。构建脚本会优先读取已有 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，未设置时默认使用 `/opt/android-sdk`。当前使用 debug keystore 签名，仅用于内测安装，不提交正式 keystore 或 APK 产物。
+
+## 11. logcat 诊断
+
+```bash
+adb logcat -c
+adb shell am start -n com.xlt.delivery/.MainActivity
+sleep 5
+adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|SoLoader|Unable to load script|BundleDownloader|com.xlt.delivery|localhost:8081|index.bundle"
+```
+
+- AppCompat theme 问题：会出现 `You need to use a Theme.AppCompat theme`。
+- Metro 连接问题：会出现 `Could not connect to development server`、`BundleDownloader` 或 `localhost:8081/index.bundle`。
+- standalone 缺少 bundle：standalone 启动时仍报 `Unable to load script`，需要检查 Gradle bundle 任务。
+- JS 运行时异常：会出现 `ReactNativeJS` 业务堆栈，此时说明 bundle 已加载。
+

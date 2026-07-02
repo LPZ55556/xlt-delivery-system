@@ -572,3 +572,53 @@ curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=fal
 ```
 
 返回 `200` 表示 bundle 可生成。若返回 `500` 并提示缺少 `@babel/runtime/helpers/...`，说明 pnpm monorepo 依赖未被 mobile 直接声明；当前 `apps/mobile` 已显式依赖 `@babel/runtime`。
+
+## Android 真机运行与 standalone APK
+
+React Native debug APK 默认不内置 JS bundle，启动后会访问 Metro：
+
+```text
+http://localhost:8081/index.bundle?platform=android&dev=true...
+```
+
+因此 debug 真机运行必须先启动 Metro，并通过 `adb reverse` 把手机端 `localhost:8081` 转发到 Ubuntu 开发机：
+
+```bash
+cd /home/projects/xlt-delivery-system/apps/mobile
+pnpm start -- --reset-cache
+```
+
+另开终端：
+
+```bash
+cd /home/projects/xlt-delivery-system
+pnpm --filter @xlt/mobile build:android:debug
+./scripts/mobile-debug-android.sh
+```
+
+脚本会检查 adb 设备、执行 `adb reverse --remove-all`、转发 `tcp:8081`、从手机侧检查 Metro、安装 debug APK 并启动 `com.xlt.delivery/.MainActivity`。如果曾经在 Dev Settings 中配置过错误的调试服务器，可使用 `CLEAR_APP_DATA=1 ./scripts/mobile-debug-android.sh` 只清理 `com.xlt.delivery` 后重装启动。如果手机之前在 React Native Dev Settings 中保存过开发机 IP，可能覆盖 adb reverse；必要时仅清理本 App 数据：
+
+```bash
+adb shell pm clear com.xlt.delivery
+```
+
+如果 USB reverse 不生效，可以在 React Native Dev Settings 中设置开发机地址，例如 `192.168.31.129:8081`，实际 IP 以 Ubuntu 开发机当前地址为准，不要写入业务代码。
+
+本项目同时提供不依赖 Metro 的 standalone APK，用 debug keystore 签名，仅用于内测安装：
+
+```bash
+pnpm --filter @xlt/mobile build:android:standalone
+```
+
+构建脚本会优先读取已有 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，未设置时默认使用 `/opt/android-sdk`。
+
+产物路径：
+
+```text
+apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+```
+
+standalone APK 会由 React Native Gradle 插件生成并内置 `index.android.bundle`，安装后不需要 Metro，也不需要 `adb reverse`。debug APK 和当前 HTTP 开发 API 需要 Android 允许明文 HTTP；Manifest 已设置 `android:usesCleartextTraffic="true"`。后续生产环境切换 HTTPS 后应收紧该策略。APK、AAB、bundle 构建产物、Gradle 缓存、正式 keystore 和真实 `.env` 均不得提交。
+
+推荐真机测试顺序：先安装 standalone APK 验证 App 能打开，再验证 debug APK + Metro，最后再测试登录和开单。若出现红屏 `Could not connect to development server` 或点击 Dismiss 后白屏，通常表示 debug APK 没有加载到 JS bundle；先检查 Metro、`adb reverse` 和 bundle 接口。
+

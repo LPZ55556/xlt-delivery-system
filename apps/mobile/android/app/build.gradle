@@ -21,6 +21,26 @@ android {
         versionCode 1
         versionName "0.1.0"
     }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+
+        standalone {
+            initWith release
+            matchingFallbacks = ["release"]
+            debuggable false
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+        }
+
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
 }
 
 dependencies {

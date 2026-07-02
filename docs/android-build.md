@@ -206,3 +206,82 @@ curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=fal
 ```
 
 期望返回 `200`。如果返回 `500`，查看响应正文，重点检查 pnpm monorepo 依赖解析。当前项目已将 `@babel/runtime` 声明为 mobile 直接依赖，避免 Metro 无法解析 Babel helper 导致 debug App 启动时报 `Unable to load script`。
+
+## 12. debug 真机运行脚本
+
+debug APK 不内置 JS bundle，必须保持 Metro 运行。推荐流程：
+
+```bash
+cd /home/projects/xlt-delivery-system/apps/mobile
+pnpm start -- --reset-cache
+```
+
+另开终端：
+
+```bash
+cd /home/projects/xlt-delivery-system
+pnpm --filter @xlt/mobile build:android:debug
+./scripts/mobile-debug-android.sh
+```
+
+`scripts/mobile-debug-android.sh` 会检查 adb、检查设备授权、重置并配置 `adb reverse tcp:8081 tcp:8081`、从手机侧检查 Metro、安装 debug APK、停止并启动 `com.xlt.delivery/.MainActivity`。脚本不启动 Metro，因为 Metro 需要单独终端持续运行。如果曾经在 Dev Settings 中配置过错误的调试服务器，可使用 `CLEAR_APP_DATA=1 ./scripts/mobile-debug-android.sh` 只清理 `com.xlt.delivery` 后重装启动。
+
+如果 `adb reverse --list` 正常但 App 仍连接开发机 IP 或旧地址，可能是 Dev Settings 保存过调试服务器。可以只清理当前 App 数据后重试：
+
+```bash
+adb shell pm clear com.xlt.delivery
+```
+
+如果 USB reverse 不可用，可在 React Native Dev Settings 中手动设置开发机地址，例如 `192.168.31.129:8081`。实际 IP 以 Ubuntu 开发机当前地址为准，不要写死到业务代码。
+
+## 13. standalone APK 构建
+
+standalone APK 用于内测安装运行，内置 JS bundle，不依赖 Metro，也不需要 `adb reverse`。当前使用默认 debug keystore 签名，不提交正式 keystore：
+
+```bash
+pnpm --filter @xlt/mobile build:android:standalone
+```
+
+构建脚本会优先读取已有 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，未设置时默认使用 `/opt/android-sdk`。如果 SDK 安装在其他位置，请先导出真实路径。
+
+产物路径：
+
+```text
+apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+```
+
+React Native Gradle 插件会执行 `createBundleStandaloneJsAndAssets`，生成的 `index.android.bundle` 位于 `android/app/build/` 下的构建目录中。`android/app/build/`、APK、AAB 和手动 bundle 产物均已加入 `.gitignore`，不得提交。
+
+验证 standalone APK：
+
+```bash
+cd /home/projects/xlt-delivery-system/apps/mobile
+adb install -r android/app/build/outputs/apk/standalone/app-standalone.apk
+adb shell am force-stop com.xlt.delivery
+adb logcat -c
+adb shell am start -n com.xlt.delivery/.MainActivity
+sleep 5
+adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|SoLoader|Unable to load script|BundleDownloader|com.xlt.delivery|localhost:8081|index.bundle"
+```
+
+standalone APK 正常时不应再访问 `localhost:8081/index.bundle`，logcat 中应能看到 `ReactNativeJS: Running "XltDelivery"`，且没有 `FATAL EXCEPTION` 或 `Unable to load script`。
+
+debug APK 和当前 HTTP 开发 API 需要 Android 允许明文 HTTP；Manifest 已设置 `android:usesCleartextTraffic="true"`。后续生产环境切换 HTTPS 后应收紧该策略。
+
+## 14. JS bundle 问题排查
+
+常用命令：
+
+```bash
+adb logcat -c
+adb shell am start -n com.xlt.delivery/.MainActivity
+adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|SoLoader|Unable to load script|BundleDownloader|com.xlt.delivery"
+```
+
+判断方式：
+
+- `You need to use a Theme.AppCompat theme`：检查 `styles.xml` 和 `AndroidManifest.xml` 的 AppCompat 主题配置。
+- `Could not connect to development server`：debug APK 未连上 Metro，检查 `pnpm start`、`adb reverse --list` 和 Dev Settings 中的服务器地址。
+- `Unable to load script` 且 standalone APK 也出现：检查 standalone 是否执行了 `createBundleStandaloneJsAndAssets`，以及 APK 是否包含 `index.android.bundle`。
+- `ReactNativeJS` 后出现业务堆栈：说明 JS 已加载，继续按 JS 运行时异常定位。
+
