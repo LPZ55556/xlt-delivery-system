@@ -7,13 +7,13 @@ auth.token = "change_me"
 [[proxies]]
 name = "delivery-api"
 type = "http"
-localIP = "127.0.0.1"
+localIP = "api"
 localPort = 3000
 customDomains = ["api.lnize.top"]
 
 [[proxies]]
 name = "delivery-admin"
 type = "http"
-localIP = "127.0.0.1"
+localIP = "web-admin"
 localPort = 3001
 customDomains = ["admin.lnize.top"]

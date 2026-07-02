@@ -622,3 +622,44 @@ standalone APK 会由 React Native Gradle 插件生成并内置 `index.android.b
 
 推荐真机测试顺序：先安装 standalone APK 验证 App 能打开，再验证 debug APK + Metro，最后再测试登录和开单。若出现红屏 `Could not connect to development server` 或点击 Dismiss 后白屏，通常表示 debug APK 没有加载到 JS bundle；先检查 Metro、`adb reverse` 和 bundle 接口。
 
+## 生产部署概览
+
+生产运行在 Ubuntu 服务端 `192.168.31.128`，路径为 `/opt/xlt-delivery-system`。Windows 控制机只负责 SSH/浏览器，Ubuntu 开发机 `192.168.31.129` 只负责开发、测试、构建和提交 GitHub；服务端负责运行 PostgreSQL、Redis、NestJS API、Web 后台和 frpc。
+
+生产部署使用 Docker Compose：
+
+```bash
+cd /opt/xlt-delivery-system
+docker compose --env-file .env.production -f docker-compose.prod.yml config
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+
+# ??????? docker-compose v1????
+docker-compose --env-file .env.production -f docker-compose.prod.yml config
+docker-compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
+
+真实配置只保存在服务端本地：
+
+- `/opt/xlt-delivery-system/.env.production`
+- `/opt/xlt-delivery-system/deploy/frpc.toml`
+
+这两个文件不得提交 Git。`.env.production` 提供 `DATABASE_URL`、PostgreSQL 密码、Redis 密码、`JWT_SECRET`、`NEXT_PUBLIC_API_BASE_URL=http://api.lnize.top:8080` 等配置。`deploy/frpc.toml` 基于 `deploy/frpc.example.toml` 创建，frpc 连接 `42.121.105.101:7000`，HTTP 代理 `api.lnize.top` 到 Compose 服务 `api:3000`，代理 `admin.lnize.top` 到 `web-admin:3001`。
+
+首次部署后执行数据库迁移：
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec api pnpm prisma:migrate:deploy
+# docker-compose v1?
+docker-compose --env-file .env.production -f docker-compose.prod.yml exec api pnpm prisma:migrate:deploy
+```
+
+验证：
+
+```bash
+curl http://127.0.0.1:3000/api/health
+curl -I http://127.0.0.1:3001
+curl http://api.lnize.top:8080/api/health
+curl -I http://admin.lnize.top:8080
+```
+
+公网 Web 后台可访问后打开 `http://admin.lnize.top:8080`，若尚无管理员账号，应进入首次初始化流程。Android App 服务端联调时通过构建环境变量设置 `MOBILE_API_BASE_URL=http://api.lnize.top:8080`，不要在源码写死 API 地址。

@@ -280,3 +280,159 @@ Web 后台初次启动时，如果系统中不存在管理员账号，必须进�
 8. 确认 API 和 Web 后台访问正常
 
 项目代码中不得写死服务器 IP、frp token、数据库密码、JWT_SECRET、高德 Key。
+
+---
+
+## 十二、当前生产部署步骤
+
+本阶段允许操作 Ubuntu 服务端。服务端信息：
+
+```text
+Ubuntu 服务端 IP：192.168.31.128
+部署路径：/opt/xlt-delivery-system
+GitHub 仓库：https://github.com/LPZ55556/xlt-delivery-system
+```
+
+### 1. 服务端环境
+
+服务端需要 Git、Docker Engine 和 Docker Compose。检查命令：
+
+```bash
+docker --version
+docker compose version || docker-compose --version
+git --version
+```
+
+### 2. 拉取代码
+
+```bash
+sudo mkdir -p /opt/xlt-delivery-system
+sudo chown -R $(whoami):$(whoami) /opt/xlt-delivery-system
+git clone https://github.com/LPZ55556/xlt-delivery-system.git /opt/xlt-delivery-system
+cd /opt/xlt-delivery-system
+git pull
+git status
+```
+
+如果目录已存在，先确认它是本仓库且没有未提交本地改动，不要直接删除。
+
+### 3. 创建 `.env.production`
+
+在服务端本地创建 `/opt/xlt-delivery-system/.env.production`，不要提交 Git。示例字段：
+
+```bash
+NODE_ENV=production
+API_HOST=0.0.0.0
+API_PORT=3000
+WEB_ADMIN_PORT=3001
+WEB_PORT=3001
+POSTGRES_DB=delivery_db
+POSTGRES_USER=delivery_user
+POSTGRES_PASSWORD=<真实强密码>
+DATABASE_URL=postgresql://delivery_user:<真实强密码>@postgres:5432/delivery_db
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=<真实强密码或留空>
+JWT_SECRET=<openssl rand -base64 48>
+JWT_EXPIRES_IN=7d
+FIRST_RUN_SETUP_ENABLED=true
+NEXT_PUBLIC_API_BASE_URL=http://api.lnize.top:8080
+API_BASE_URL=http://api.lnize.top:8080
+WEB_ADMIN_URL=http://admin.lnize.top:8080
+```
+
+生成密钥示例：
+
+```bash
+openssl rand -base64 48
+```
+
+### 4. 创建 `deploy/frpc.toml`
+
+在服务端本地基于 `deploy/frpc.example.toml` 创建 `/opt/xlt-delivery-system/deploy/frpc.toml`，不要提交 Git。Docker Compose 中 frpc 与 API/Web 位于同一网络，`localIP` 使用服务名：
+
+```toml
+serverAddr = "42.121.105.101"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "<真实 frp token>"
+
+[[proxies]]
+name = "delivery-api"
+type = "http"
+localIP = "api"
+localPort = 3000
+customDomains = ["api.lnize.top"]
+
+[[proxies]]
+name = "delivery-admin"
+type = "http"
+localIP = "web-admin"
+localPort = 3001
+customDomains = ["admin.lnize.top"]
+```
+
+外部访问端口由阿里云 frps 的 `vhostHTTPPort=8080` 决定，`customDomains` 不写端口。
+
+### 5. 启动服务
+
+```bash
+cd /opt/xlt-delivery-system
+docker compose --env-file .env.production -f docker-compose.prod.yml config
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+
+# Ubuntu ??????? docker-compose v1????
+docker-compose --env-file .env.production -f docker-compose.prod.yml config
+docker-compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+docker-compose --env-file .env.production -f docker-compose.prod.yml ps
+```
+
+### 6. 数据库迁移
+
+首次部署执行迁移，不要执行 `migrate reset`，不要清空数据库：
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec api pnpm prisma:migrate:deploy
+# docker-compose v1?
+docker-compose --env-file .env.production -f docker-compose.prod.yml exec api pnpm prisma:migrate:deploy
+```
+
+### 7. 验证
+
+本地验证：
+
+```bash
+curl http://127.0.0.1:3000/api/health
+curl -I http://127.0.0.1:3001
+```
+
+frpc 日志：
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=100 frpc
+# docker-compose v1?
+docker-compose --env-file .env.production -f docker-compose.prod.yml logs --tail=100 frpc
+```
+
+公网验证：
+
+```bash
+curl http://api.lnize.top:8080/api/health
+curl -I http://admin.lnize.top:8080
+```
+
+如果公网失败，依次检查 DNS 是否解析到 `42.121.105.101`、阿里云安全组是否开放 `8080`、frps 是否启用 `vhostHTTPPort=8080`、frpc token 是否正确、`customDomains` 是否冲突、API/Web 是否在容器内监听 `0.0.0.0`。
+
+### 8. 首次初始化和 App 联调
+
+打开 `http://admin.lnize.top:8080`，无管理员时应进入 `/first-run-setup`。初始化后创建配送员账号、商户和商品。Android App 使用服务端 API 时重新构建：
+
+```bash
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
+```
+
+### 9. 回滚和安全
+
+回滚优先使用用户已创建的服务端快照。正式运行后需要定期备份 PostgreSQL 数据。PostgreSQL `5432`、Redis `6379` 只绑定服务端本机 `127.0.0.1`，不得通过 frpc 暴露公网。frpc 只代理 API 和 Web，不代理数据库、Redis 或 frps dashboard。
