@@ -60,3 +60,33 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 - App 白屏或提示无法连接 Metro：确认 Metro 正在运行，并执行 `adb reverse tcp:8081 tcp:8081`。
 - 设备未授权：执行 `adb devices`，在手机上确认 USB 调试授权。
 - 生产/正式包不依赖 Metro；本说明只针对 debug 调试包。
+
+
+## 6. AppCompat theme 启动崩溃
+
+如果真机启动后立刻退出，先抓取 logcat：
+
+```bash
+adb logcat -c
+adb shell am start -n com.xlt.delivery/.MainActivity
+adb logcat -d | grep -E "AndroidRuntime|com.xlt.delivery|AppCompat|ReactActivity"
+```
+
+如果看到 `You need to use a Theme.AppCompat theme (or descendant) with this activity`，说明 `MainActivity` 使用的 theme 不是 AppCompat 子类。应检查：
+
+- `apps/mobile/android/app/src/main/AndroidManifest.xml` 中 application/activity 的 `android:theme`。
+- `apps/mobile/android/app/src/main/res/values/styles.xml` 中 `AppTheme` 的 parent。
+- `apps/mobile/android/app/build.gradle` 是否包含 `androidx.appcompat:appcompat` 依赖。
+
+当前 `AppTheme` 继承自 `Theme.AppCompat.DayNight.NoActionBar`，用于兼容 ReactActivity/AppCompatActivity 启动链路。debug APK 启动时仍需要 Metro 和 `adb reverse tcp:8081 tcp:8081`。
+
+
+## 7. Metro bundle 返回 500
+
+如果 Metro 已启动但 App 仍提示 `Unable to load script`，先在 Ubuntu 开发机检查 bundle 接口：
+
+```bash
+curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false&app=com.xlt.delivery'
+```
+
+如果返回 500，再查看响应正文。pnpm monorepo 中常见原因是移动端缺少直接依赖，例如 `@babel/runtime` 没有在 `apps/mobile/package.json` 中声明。当前 mobile 已显式依赖 `@babel/runtime`，用于保证 Metro 可以解析 Babel helper。

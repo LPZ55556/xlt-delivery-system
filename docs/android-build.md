@@ -162,3 +162,47 @@ keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -sto
 - `BLUETOOTH` / `BLUETOOTH_CONNECT` / `BLUETOOTH_SCAN`：蓝牙打印，需区分 Android 版本。
 
 不要在未接入真实功能前提交高德 Key、正式 keystore 或蓝牙设备密钥。
+
+
+## 10. AppCompat theme 检查
+
+React Native debug Activity 运行时会走 AppCompat 启动链路。如果真机闪退并在 logcat 中出现：
+
+```text
+You need to use a Theme.AppCompat theme (or descendant) with this activity.
+```
+
+需要检查：
+
+```bash
+sed -n '1,160p' apps/mobile/android/app/src/main/AndroidManifest.xml
+sed -n '1,160p' apps/mobile/android/app/src/main/res/values/styles.xml
+grep -n "androidx.appcompat" apps/mobile/android/app/build.gradle
+```
+
+当前 `AppTheme` 应继承 `Theme.AppCompat.DayNight.NoActionBar`，并由 `AndroidManifest.xml` 的 application theme 引用。debug APK 仍需先启动 Metro：
+
+```bash
+cd apps/mobile
+pnpm start
+adb reverse tcp:8081 tcp:8081
+```
+
+常用 logcat 抓取命令：
+
+```bash
+adb logcat -c
+adb shell am start -n com.xlt.delivery/.MainActivity
+adb logcat -d | grep -E "AndroidRuntime|com.xlt.delivery|AppCompat|ReactActivity"
+```
+
+
+## 11. Metro bundle 接口检查
+
+Metro 显示 `Dev server ready` 后，可以检查 Android bundle 是否能正常生成：
+
+```bash
+curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false&app=com.xlt.delivery'
+```
+
+期望返回 `200`。如果返回 `500`，查看响应正文，重点检查 pnpm monorepo 依赖解析。当前项目已将 `@babel/runtime` 声明为 mobile 直接依赖，避免 Metro 无法解析 Babel helper 导致 debug App 启动时报 `Unable to load script`。

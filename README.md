@@ -540,3 +540,35 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 ```
 
 当前入口注册名保持一致：`app.json` 的 `name` 为 `XltDelivery`，`index.js` 使用该名称注册，`MainActivity.getMainComponentName()` 返回 `XltDelivery`。如果 Metro 未启动或设备未执行 `adb reverse`，debug App 可能无法加载 JS bundle，表现为红屏、白屏或启动后退出。
+
+
+### Android AppCompat 启动主题
+
+Android debug App 的 `AppTheme` 继承自 `Theme.AppCompat.DayNight.NoActionBar`，并在 app 模块中依赖 `androidx.appcompat:appcompat`。如果真机启动后闪退，logcat 出现 `You need to use a Theme.AppCompat theme`，请检查 `AndroidManifest.xml`、`values/styles.xml` 和 `apps/mobile/android/app/build.gradle`。
+
+抓取启动崩溃日志：
+
+```bash
+adb logcat -c
+adb shell am start -n com.xlt.delivery/.MainActivity
+adb logcat -d | grep -E "AndroidRuntime|com.xlt.delivery|AppCompat|ReactActivity"
+```
+
+debug APK 启动时仍需要 Metro：
+
+```bash
+cd apps/mobile
+pnpm start
+adb reverse tcp:8081 tcp:8081
+```
+
+
+### Metro bundle 检查
+
+Metro 启动后可验证 Android bundle：
+
+```bash
+curl -I 'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false&app=com.xlt.delivery'
+```
+
+返回 `200` 表示 bundle 可生成。若返回 `500` 并提示缺少 `@babel/runtime/helpers/...`，说明 pnpm monorepo 依赖未被 mobile 直接声明；当前 `apps/mobile` 已显式依赖 `@babel/runtime`。

@@ -13,6 +13,7 @@
     "start:reset-cache": "react-native start --reset-cache"
   },
   "dependencies": {
+    "@babel/runtime": "^7.25.0",
     "@react-native-async-storage/async-storage": "^2.1.0",
     "@xlt/shared": "workspace:*",
     "react": "18.3.1",
