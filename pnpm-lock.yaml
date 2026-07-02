@@ -32,6 +32,9 @@ importers:
       '@react-native/gradle-plugin':
         specifier: 0.75.4
         version: 0.75.4
+      '@react-native/metro-config':
+        specifier: 0.75.4
+        version: 0.75.4(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))
       '@types/react':
         specifier: ^18.3.11
         version: 18.3.31
@@ -1166,6 +1169,10 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@babel/core': '*'
+
+  '@react-native/metro-config@0.75.4':
+    resolution: {integrity: sha512-gIIVlPUtZ1UKCxMJRtG88FoWS5REbI4YUmiyoM8eBUA85Zvk27b67iBX5Lkuxg8FGc7t9tjWQRpVGs2IK5uZpQ==}
+    engines: {node: '>=18'}
 
   '@react-native/normalize-colors@0.75.4':
     resolution: {integrity: sha512-90QrQDLg0/k9xqYesaKuIkayOSjD+FKa0hsHollbwT5h3kuGMY+lU7UZxnb8tU55Y1PKdvjYxqQsYWI/ql79zA==}
@@ -5221,6 +5228,19 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/preset-env'
       - supports-color
+
+  '@react-native/metro-config@0.75.4(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))':
+    dependencies:
+      '@react-native/js-polyfills': 0.75.4
+      '@react-native/metro-babel-transformer': 0.75.4(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))
+      metro-config: 0.80.12
+      metro-runtime: 0.80.12
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/preset-env'
+      - bufferutil
+      - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.75.4': {}
 

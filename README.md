@@ -501,3 +501,42 @@ MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile android
 当前扫码、定位、蓝牙打印仍为占位功能；Manifest 仅保留 API 访问所需 `INTERNET` 权限。后续接入真实功能时再精确申请 `CAMERA`、定位和蓝牙运行时权限。详细步骤见 `docs/android-build.md`。
 
 下一步建议：在真机上验证登录和开单链路，随后分阶段接入摄像头扫码、高德定位、蓝牙打印，并补充移动端端到端测试。
+
+
+## Mobile Metro 调试启动
+
+`apps/mobile` 已补充 `metro.config.js`，用于 React Native CLI 在 pnpm monorepo 中解析依赖。配置包含仓库根目录 `watchFolders`，并同时设置 `apps/mobile/node_modules` 与根目录 `node_modules` 为 `resolver.nodeModulesPaths`。
+
+启动 Metro：
+
+```bash
+cd apps/mobile
+pnpm start
+```
+
+清缓存启动：
+
+```bash
+cd apps/mobile
+pnpm start:reset-cache
+# 或
+npx react-native start --reset-cache
+```
+
+Android debug APK 真机运行流程：
+
+```bash
+cd apps/mobile
+pnpm start
+```
+
+另开终端：
+
+```bash
+cd apps/mobile
+adb reverse tcp:8081 tcp:8081
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.xlt.delivery/.MainActivity
+```
+
+当前入口注册名保持一致：`app.json` 的 `name` 为 `XltDelivery`，`index.js` 使用该名称注册，`MainActivity.getMainComponentName()` 返回 `XltDelivery`。如果 Metro 未启动或设备未执行 `adb reverse`，debug App 可能无法加载 JS bundle，表现为红屏、白屏或启动后退出。

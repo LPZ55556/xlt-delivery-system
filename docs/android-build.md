@@ -73,7 +73,36 @@ cd apps/mobile/android
 ./gradlew --version
 ```
 
-## 5. 构建 debug APK
+## 5. 启动 Metro
+
+React Native debug 包需要 Metro 提供 JS bundle。移动端已提供 `apps/mobile/metro.config.js`，适配 pnpm monorepo：
+
+- `watchFolders` 指向仓库根目录。
+- `resolver.nodeModulesPaths` 同时包含 `apps/mobile/node_modules` 和根目录 `node_modules`。
+- React / React Native 固定解析到 mobile 工作区依赖，避免重复实例。
+
+启动 Metro：
+
+```bash
+cd apps/mobile
+pnpm start
+```
+
+清缓存启动：
+
+```bash
+cd apps/mobile
+pnpm start:reset-cache
+```
+
+也可以使用 React Native CLI：
+
+```bash
+cd apps/mobile
+npx react-native start --reset-cache
+```
+
+## 6. 构建 debug APK
 
 从仓库根目录执行：
 
@@ -90,7 +119,18 @@ cd apps/mobile/android
 
 构建产物位于 `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`。APK 和构建产物已加入 `.gitignore`，不得提交。
 
-## 6. 真机 USB 调试运行
+## 7. 真机 USB 调试运行
+
+如果使用已经构建好的 debug APK，先保持 Metro 运行，再另开终端执行：
+
+```bash
+cd apps/mobile
+adb reverse tcp:8081 tcp:8081
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.xlt.delivery/.MainActivity
+```
+
+如果通过 React Native CLI 直接安装运行：
 
 1. Android 手机开启开发者选项和 USB 调试。
 2. 使用 USB 连接 Ubuntu 开发机。
@@ -103,7 +143,7 @@ MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile android
 
 如果设备显示 `unauthorized`，请在手机上确认 USB 调试授权。
 
-## 7. 调试版 SHA1
+## 8. 调试版 SHA1
 
 后续接入高德定位等 SDK 时可能需要调试版 SHA1：
 
@@ -113,7 +153,7 @@ keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -sto
 
 如果 `~/.android/debug.keystore` 不存在，先执行一次 Android debug 构建，Gradle 通常会自动生成；也可以通过 Android Studio 或标准 debug keystore 生成流程创建。
 
-## 8. 后续权限占位
+## 9. 后续权限占位
 
 当前 Manifest 只申请 `INTERNET`，用于访问后端 API。扫码、定位、蓝牙打印仍是占位功能，后续接入时再按实际 SDK 和 Android 版本精确申请运行时权限：
 

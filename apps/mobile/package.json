@@ -9,7 +9,8 @@
     "build": "pnpm run build:android:debug",
     "lint": "echo mobile lint placeholder",
     "build:android:debug": "cd android && ./gradlew assembleDebug",
-    "clean:android": "cd android && ./gradlew clean"
+    "clean:android": "cd android && ./gradlew clean",
+    "start:reset-cache": "react-native start --reset-cache"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.0",
@@ -20,8 +21,9 @@
   "devDependencies": {
     "@react-native-community/cli": "^15.0.1",
     "@react-native-community/cli-platform-android": "^15.0.1",
+    "@react-native/gradle-plugin": "0.75.4",
+    "@react-native/metro-config": "0.75.4",
     "@types/react": "^18.3.11",
-    "typescript": "^5.6.3",
-    "@react-native/gradle-plugin": "0.75.4"
+    "typescript": "^5.6.3"
   }
 }
