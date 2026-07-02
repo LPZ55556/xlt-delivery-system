@@ -1,3 +1,5 @@
+export type MoneyString = string;
+
 export type MoneyAmount = {
   /** Decimal string, for example "12.50". Do not use float arithmetic for money. */
   value: string;

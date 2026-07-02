@@ -180,7 +180,7 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 - 实现商户管理最小 CRUD，支持分页、搜索、启用过滤和软停用。
 - 实现订单开单最小闭环，包含事务创建、商品快照、金额计算、订单列表/详情、作废和小票数据接口。
 - 初始化 Web 后台页面骨架，并让首次初始化页可以提交 API。
-- 初始化 React Native Android App 骨架，包含首页、底部导航、中间加大的“开单”按钮、登录、开单、扫码、商户选择、今日轨迹占位。
+- 初始化 React Native Android App，并完成登录、首页、商户选择、商品选择、电子清单、订单创建、我的订单、订单详情和小票预览的最小闭环。
 - 创建共享类型和金额工具，占位采用 decimal string / minor units 思路，避免 float 直接计算金额。
 - 提供开发和生产 Docker Compose 模板。
 - 保留 FRP 客户端示例模板，不生成真实 `frpc.toml`。
@@ -189,7 +189,7 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 
 - 角色权限细粒度策略仍为占位，JWT Guard 和角色元数据基础设施已有最小实现。
 - 报表、轨迹和审计日志接口目前只返回占位响应。
-- App 暂不接入高德地图、扫码、蓝牙打印和离线同步，只预留页面和配置入口。
+- App 暂不接入高德地图、真实摄像头扫码、蓝牙打印和离线同步，只预留页面和配置入口。
 
 ## 下一阶段建议任务
 
@@ -382,3 +382,72 @@ USER_LOGIN_FAILED_DISABLED
 Web 后台新增 `/users` 用户管理页面，左侧菜单仅对 `super_admin` / `admin` 显示“用户管理”。页面支持用户列表、搜索、角色筛选、启用状态筛选、新增、编辑、重置密码、禁用和启用。Dashboard 会在有权限时显示用户数量和配送员数量。
 
 下一步建议：App 登录页接入 `POST /api/auth/login`，App 开单页使用配送员账号登录后接入商户、商品和订单创建 API。
+
+
+## Android App 最小开单闭环
+
+`apps/mobile` 当前沿用 React Native CLI 技术栈，App 名称为“小灵通”，Android 包名为 `com.xlt.delivery`。
+
+当前 App 已实现：
+
+- 配送员账号登录。
+- 登录状态恢复和退出登录。
+- 首页“今日营业概览”。
+- 商户选择。
+- 商品列表和按名称 / 条码搜索。
+- 手动条码搜索作为扫码占位。
+- 商品加入电子清单、调整数量、删除明细。
+- 提交订单到 `POST /api/orders`。
+- 我的订单列表。
+- 订单详情。
+- 小票数据预览。
+- 今日轨迹、商品销量排行、打印机连接占位入口。
+
+App 登录使用 Web 后台创建的 `salesperson` 配送员账号。被禁用用户不能登录；token 过期或接口返回 401 时，App 会清除本地登录状态并回到登录页。
+
+### Mobile API 地址
+
+移动端 API 地址通过环境变量读取：
+
+```bash
+MOBILE_API_BASE_URL=http://api.lnize.top:8080
+```
+
+也兼容 `API_BASE_URL`。业务代码不写死 API 域名、服务器 IP、数据库密码、frp token、高德 Key 或 JWT_SECRET。当前阶段 token 和用户信息通过 `@react-native-async-storage/async-storage` 的封装保存，后续可替换为系统 Keychain / Keystore 级安全存储。
+
+### App 开单流程
+
+```text
+登录
+→ 首页点击开单
+→ 选择启用商户
+→ 加载启用商品
+→ 按名称或条码搜索商品
+→ 加入电子清单
+→ 调整数量或删除商品
+→ 提交订单
+→ 查看订单详情或小票预览
+```
+
+App 创建订单时只提交 `merchantId`、`productId` 和 `quantity`，不提交前端计算价格作为可信数据。商品售价以后端返回的 `salePrice` 为显示依据，最终订单总金额以后端订单响应为准。App 不展示 `costPrice`、进价或利润。
+
+### 当前占位能力
+
+- 扫码：当前为手动条码搜索和“扫码功能后续接入摄像头”提示，未接入摄像头权限或扫码 SDK。
+- 定位 / 高德地图：当前不传经纬度，商户选择页和轨迹页保留占位，不写入真实高德 Key。
+- 蓝牙打印：当前只展示小票预览，不连接蓝牙打印机。
+- 今日订单：当前后端订单列表暂无日期筛选，App 先显示“我的订单”，首页用本地列表计算今日概览。
+
+### 运行 mobile 开发环境
+
+在 Ubuntu 开发机项目目录执行：
+
+```bash
+pnpm install
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile start
+pnpm --filter @xlt/mobile android
+```
+
+Android 真机/模拟器构建需要本机安装 Android SDK、Gradle/JDK 环境，并正确配置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`。
+
+下一步建议：接入摄像头扫码、蓝牙热敏打印、高德地图定位与轨迹，并为 App 增加离线订单缓存和网络恢复自动同步。
