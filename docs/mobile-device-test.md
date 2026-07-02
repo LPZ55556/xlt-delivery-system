@@ -177,3 +177,39 @@ adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|S
 - standalone 缺少 bundle：standalone 启动时仍报 `Unable to load script`，需要检查 Gradle bundle 任务。
 - JS 运行时异常：会出现 `ReactNativeJS` 业务堆栈，此时说明 bundle 已加载。
 
+## 生产 API 真机联调流程
+
+1. 确认 API 健康检查正常：
+
+```bash
+curl -i http://api.lnize.top:8080/api/health
+```
+
+2. 构建连接生产 API 的 standalone APK：
+
+```bash
+cd /home/projects/xlt-delivery-system
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
+```
+
+3. 安装并清理旧数据：
+
+```bash
+adb install -r apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+adb shell pm clear com.xlt.delivery
+adb shell am start -n com.xlt.delivery/.MainActivity
+```
+
+4. 进入 App 设置页确认 API 地址显示为 `http://api.lnize.top:8080`。不要显示 token、JWT、数据库密码或 frp token。
+
+5. 如果登录失败，先在 Web 后台确认已完成首次初始化，并创建 `salesperson` 配送员账号。若商户或商品列表为空，先在 Web 后台创建启用商户和启用商品。
+
+6. 启动日志排查：
+
+```bash
+adb logcat -c
+adb shell am force-stop com.xlt.delivery
+adb shell am start -n com.xlt.delivery/.MainActivity
+sleep 8
+adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|Unable to load script|Network request failed|api.lnize.top|xlt.delivery|fetch|TypeError|HTTP|Cleartext|CLEARTEXT"
+```

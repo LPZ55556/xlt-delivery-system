@@ -285,3 +285,27 @@ adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|S
 - `Unable to load script` 且 standalone APK 也出现：检查 standalone 是否执行了 `createBundleStandaloneJsAndAssets`，以及 APK 是否包含 `index.android.bundle`。
 - `ReactNativeJS` 后出现业务堆栈：说明 JS 已加载，继续按 JS 运行时异常定位。
 
+## 连接生产 API 的 standalone APK
+
+standalone APK 不依赖 Metro。构建时通过 `MOBILE_API_BASE_URL` 注入 API 地址，Android 原生层会把该值暴露给 React Native；设置页可查看当前 App 使用的 API 地址。
+
+```bash
+cd /home/projects/xlt-delivery-system
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
+```
+
+产物路径：
+
+```text
+apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+```
+
+安装到真机：
+
+```bash
+adb install -r apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+adb shell pm clear com.xlt.delivery
+adb shell am start -n com.xlt.delivery/.MainActivity
+```
+
+当前生产 API 仍是 HTTP，Android Manifest 已允许明文 HTTP。上线前应切换 HTTPS 并收紧明文访问策略。

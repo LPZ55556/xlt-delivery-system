@@ -663,3 +663,17 @@ curl -I http://admin.lnize.top:8080
 ```
 
 公网 Web 后台可访问后打开 `http://admin.lnize.top:8080`，若尚无管理员账号，应进入首次初始化流程。Android App 服务端联调时通过构建环境变量设置 `MOBILE_API_BASE_URL=http://api.lnize.top:8080`，不要在源码写死 API 地址。
+
+## Android App 连接生产 API
+
+生产联调 standalone APK 通过构建环境变量写入 Android `BuildConfig`，JS 侧从原生模块读取当前 API 地址，设置页会显示该地址用于核对。源码中不要写死真实 API 域名。
+
+```bash
+cd /home/projects/xlt-delivery-system
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
+adb install -r apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+adb shell pm clear com.xlt.delivery
+adb shell am start -n com.xlt.delivery/.MainActivity
+```
+
+如果 App 可以打开但登录失败，先确认 Web 后台已完成首次初始化，并已创建 `salesperson` 配送员账号。若商户或商品为空，先在 Web 后台创建至少 1 个启用商户和 1 个启用商品。

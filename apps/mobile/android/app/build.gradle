@@ -9,6 +9,8 @@ react {
 }
 
 def jscFlavor = 'org.webkit:android-jsc:+'
+def mobileApiBaseUrl = System.getenv('MOBILE_API_BASE_URL') ?: System.getenv('API_BASE_URL') ?: ''
+def escapedMobileApiBaseUrl = mobileApiBaseUrl.replace('\\', '\\\\').replace('"', '\\"')
 
 android {
     namespace "com.xlt.delivery"
@@ -20,6 +22,7 @@ android {
         targetSdkVersion 35
         versionCode 1
         versionName "0.1.0"
+        buildConfigField "String", "MOBILE_API_BASE_URL", "\"${escapedMobileApiBaseUrl}\""
     }
 
     buildTypes {
