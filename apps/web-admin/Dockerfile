@@ -14,11 +14,12 @@ COPY apps/web-admin apps/web-admin
 RUN pnpm --filter @xlt/web-admin build
 
 FROM node:22-alpine AS runner
-WORKDIR /app/apps/web-admin
+WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
 COPY --from=builder /app/apps/web-admin/.next/standalone ./
-COPY --from=builder /app/apps/web-admin/.next/static ./.next/static
-COPY --from=builder /app/apps/web-admin/public ./public
+COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
+COPY --from=builder /app/apps/web-admin/public ./apps/web-admin/public
+WORKDIR /app/apps/web-admin
 CMD ["node", "server.js"]

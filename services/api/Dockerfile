@@ -1,5 +1,6 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache openssl
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
 COPY services/api/package.json services/api/package.json
@@ -15,6 +16,7 @@ RUN pnpm --filter @xlt/api build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apk add --no-cache openssl
 RUN corepack enable
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/services/api/node_modules ./services/api/node_modules
