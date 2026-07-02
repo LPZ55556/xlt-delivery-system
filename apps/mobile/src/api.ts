@@ -25,13 +25,12 @@ export function setUnauthorizedHandler(handler: () => void) {
 function buildUrl(path: string, query?: RequestOptions['query']) {
   if (!API_BASE_URL) throw new ApiError('未配置 API 地址，请设置 MOBILE_API_BASE_URL。', 0);
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const params = new URLSearchParams();
-  if (query) {
-    Object.entries(query).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
-    });
-  }
-  const qs = params.toString();
+  const qs = query
+    ? Object.entries(query)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      .join('&')
+    : '';
   return `${API_BASE_URL}${normalizedPath}${qs ? `?${qs}` : ''}`;
 }
 
@@ -49,10 +48,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type') && options.body !== undefined) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  const url = buildUrl(path, options.query);
 
   let response: Response;
   try {
-    response = await fetch(buildUrl(path, options.query), {
+    response = await fetch(url, {
       ...options,
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
