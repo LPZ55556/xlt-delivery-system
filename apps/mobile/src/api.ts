@@ -38,7 +38,10 @@ function normalizeErrorMessage(payload: unknown, fallback: string) {
   if (payload && typeof payload === 'object' && 'message' in payload) {
     const message = (payload as { message?: unknown }).message;
     if (Array.isArray(message)) return message.join('；');
-    if (typeof message === 'string') return message;
+    if (typeof message === 'string') {
+      if (/^Cannot\s+(GET|POST|PATCH|DELETE|PUT)\s+/i.test(message)) return fallback;
+      return message;
+    }
   }
   return fallback;
 }
@@ -63,7 +66,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload: unknown = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = { message: text };
+  }
 
   if (response.status === 401) {
     await clearSession();
