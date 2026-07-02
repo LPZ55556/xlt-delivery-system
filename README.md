@@ -198,3 +198,115 @@ PostgreSQL 和 Redis 的端口只绑定到 `127.0.0.1`，不得通过 FRP 暴露
 3. Web 后台接入商户/订单页面，补齐表格、筛选和详情视图。
 4. 实现用户管理和配送员账号创建流程。
 5. 完善 Android 构建环境并验证 debug APK。
+
+
+## Web 后台业务页面
+
+Web 后台位于 `apps/web-admin`，当前已从占位页推进为可用的基础管理后台。主要路由如下：
+
+```text
+/login              登录页
+/first-run-setup    首次初始化页
+/dashboard          后台首页
+/products           商品管理
+/merchants          商户管理
+/orders             订单列表
+/orders/:id         订单详情和小票预览
+/settings           系统设置占位
+```
+
+后台主页面包含左侧菜单、顶部当前用户信息和退出登录。未登录访问业务页面会跳转到 `/login`；已登录访问登录页会跳转到 `/dashboard`。
+
+### Web 后台环境变量
+
+Web 后台调用后端 API 时读取：
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=<后端 API 地址>
+```
+
+前端代码不写死 API 域名、服务器 IP、数据库密码、frp token、高德 Key 或 JWT_SECRET。真实 `.env`、`.env.local` 和 `.env.production` 不得提交到 Git。
+
+### 登录与首次初始化
+
+- 登录页调用 `POST /api/auth/login`，成功后保存 JWT token 和用户基础信息。
+- 业务接口请求会自动携带 Bearer token。
+- 接口返回 401 时，Web 后台会清除本地登录状态并跳转登录页。
+- 首次初始化页调用 `GET /api/first-run-setup/status` 判断是否可初始化。
+- 首次初始化提交管理员账号、管理员密码和进价查看安全密码；前端只提交明文，不保存明文，后端只保存 hash。
+- 初始化完成后跳转登录页，后续不能重复初始化。
+
+### 商品管理页面
+
+商品管理页接入以下接口：
+
+```text
+GET    /api/products
+GET    /api/products/:id
+POST   /api/products
+PATCH  /api/products/:id
+DELETE /api/products/:id
+POST   /api/products/:id/cost-price-verification
+```
+
+页面支持商品列表、按名称或条码搜索、新增、编辑、停用和详情查看。普通列表和详情不展示 `costPrice`。查看进价必须通过单独按钮输入进价查看安全密码，验证成功后只在当前页面临时显示验证结果；成功或失败审计由后端写入。
+
+售价和进价输入按 decimal string 提交，页面不使用 float 计算金额。
+
+### 商户管理页面
+
+商户管理页接入以下接口：
+
+```text
+GET    /api/merchants
+GET    /api/merchants/:id
+POST   /api/merchants
+PATCH  /api/merchants/:id
+DELETE /api/merchants/:id
+```
+
+页面支持商户列表、按名称搜索、新增、编辑、停用和详情查看。经纬度当前为手动输入，高德地图选点后续再接入。
+
+### 订单管理页面
+
+订单管理页接入以下接口：
+
+```text
+GET   /api/orders
+GET   /api/orders/:id
+PATCH /api/orders/:id/void
+GET   /api/orders/:id/receipt
+```
+
+页面支持订单列表、状态筛选、订单详情、商品快照明细、商户信息、配送员信息、定位信息、订单作废和小票预览。订单页面严禁展示商品进价、利润、密码 hash、token 或数据库信息。
+
+订单作废入口仅对 `super_admin` / `admin` 显示，点击后需要二次确认并可填写作废原因；审计日志由后端写入。
+
+小票预览展示店铺名称、配送员名称、日期时间、订单号、商品名称、单价、数量、小计和总价，当前阶段不连接打印机。
+
+### Web 前端权限处理
+
+前端根据当前登录用户角色做基础体验控制：
+
+- `salesperson` 不显示进价查看入口，也不显示订单作废按钮。
+- `finance` 可以查看订单，不显示商品/商户编辑入口。
+- `admin` / `super_admin` 可以管理商品、商户并作废订单。
+- `warehouse` 可按后端当前权限管理商品，商户为只读。
+
+前端隐藏按钮只用于改善体验，真正权限校验以后端 JWT Guard 和角色控制为准。
+
+### 当前仍为占位或后续开发
+
+- 系统设置页仍是占位，后续接入用户管理、角色权限、进价安全密码轮换和审计日志查询。
+- Dashboard 当前用列表接口计算基础统计，后续可增加专用统计接口。
+- Web 后台暂不实现订单创建页面，App 开单页后续接入订单 API。
+- 小票预览暂不连接打印机。
+- 商户地图选点、轨迹管理和报表统计仍待后续开发。
+
+### 下一步建议
+
+1. App 开单页面接入商户、商品和订单创建 API。
+2. Web 后台补充订单创建或补单入口。
+3. 增加用户管理和配送员账号维护。
+4. 为 Dashboard、报表和轨迹增加专用后端查询接口。
+5. 增加 Web 端端到端测试，覆盖登录、商品、商户、订单和小票预览流程。
