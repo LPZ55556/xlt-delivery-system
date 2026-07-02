@@ -90,3 +90,40 @@ export type PagedResult<T> = {
   page?: number;
   pageSize?: number;
 };
+
+export type ProductSalesRankingItem = {
+  rank: number;
+  productId: string;
+  productName: string;
+  barcode: string;
+  quantitySold: number;
+  salesAmount: MoneyString;
+};
+
+export type TrackPoint = {
+  id?: string;
+  userId?: string;
+  latitude: string;
+  longitude: string;
+  accuracy?: string | null;
+  speed?: string | null;
+  recordedAt: string;
+  createdAt?: string;
+};
+
+export type MerchantCheckIn = {
+  id: string;
+  merchantId: string;
+  latitude: string;
+  longitude: string;
+  address: string | null;
+  createdAt: string;
+};
+
+export type AmapPoi = {
+  id: string;
+  name: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+};

@@ -11,6 +11,10 @@ react {
 def jscFlavor = 'org.webkit:android-jsc:+'
 def mobileApiBaseUrl = System.getenv('MOBILE_API_BASE_URL') ?: System.getenv('API_BASE_URL') ?: ''
 def escapedMobileApiBaseUrl = mobileApiBaseUrl.replace('\\', '\\\\').replace('"', '\\"')
+def amapAndroidKey = System.getenv('AMAP_ANDROID_KEY') ?: ''
+def amapWebServiceKey = System.getenv('AMAP_WEB_SERVICE_KEY') ?: System.getenv('AMAP_WEB_KEY') ?: ''
+def escapedAmapAndroidKey = amapAndroidKey.replace('\\', '\\\\').replace('"', '\\"')
+def escapedAmapWebServiceKey = amapWebServiceKey.replace('\\', '\\\\').replace('"', '\\"')
 
 android {
     namespace "com.xlt.delivery"
@@ -18,11 +22,14 @@ android {
 
     defaultConfig {
         applicationId "com.xlt.delivery"
-        minSdkVersion 23
+        minSdkVersion 24
         targetSdkVersion 35
         versionCode 1
         versionName "0.1.0"
         buildConfigField "String", "MOBILE_API_BASE_URL", "\"${escapedMobileApiBaseUrl}\""
+        buildConfigField "String", "AMAP_ANDROID_KEY", "\"${escapedAmapAndroidKey}\""
+        buildConfigField "String", "AMAP_WEB_SERVICE_KEY", "\"${escapedAmapWebServiceKey}\""
+        manifestPlaceholders = [AMAP_ANDROID_KEY: amapAndroidKey]
     }
 
     buildTypes {

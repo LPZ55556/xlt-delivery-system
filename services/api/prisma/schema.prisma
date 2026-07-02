@@ -118,3 +118,42 @@ model AuditLog {
   metadata   Json?
   createdAt  DateTime @default(now())
 }
+
+
+model LocationTrackPoint {
+  id         String   @id @default(uuid())
+  userId     String
+  latitude   Decimal  @db.Decimal(10, 7)
+  longitude  Decimal  @db.Decimal(10, 7)
+  accuracy   Decimal? @db.Decimal(10, 2)
+  speed      Decimal? @db.Decimal(10, 2)
+  recordedAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId, recordedAt])
+}
+
+model MerchantCheckIn {
+  id         String   @id @default(uuid())
+  userId     String
+  merchantId String
+  latitude   Decimal  @db.Decimal(10, 7)
+  longitude  Decimal  @db.Decimal(10, 7)
+  address    String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([merchantId, createdAt])
+}
+
+model UserLatestLocation {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  latitude   Decimal  @db.Decimal(10, 7)
+  longitude  Decimal  @db.Decimal(10, 7)
+  address    String?
+  accuracy   Decimal? @db.Decimal(10, 2)
+  speed      Decimal? @db.Decimal(10, 2)
+  recordedAt DateTime
+  updatedAt  DateTime @updatedAt
+}

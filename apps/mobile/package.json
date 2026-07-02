@@ -18,7 +18,9 @@
     "@react-native-async-storage/async-storage": "^2.1.0",
     "@xlt/shared": "workspace:*",
     "react": "18.3.1",
-    "react-native": "0.75.4"
+    "react-native": "0.75.4",
+    "react-native-vision-camera": "^4.6.4",
+    "react-native-webview": "^14.0.1"
   },
   "devDependencies": {
     "@react-native-community/cli": "^15.0.1",

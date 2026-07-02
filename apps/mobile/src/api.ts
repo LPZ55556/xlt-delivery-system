@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './config';
 import { clearSession, getAccessToken } from './storage';
-import type { CurrentUser, Merchant, Order, PagedResult, Product, Receipt } from './types';
+import type { CurrentUser, Merchant, Order, PagedResult, Product, ProductSalesRankingItem, Receipt, TrackPoint } from './types';
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
@@ -79,12 +79,23 @@ export const api = {
   login: (body: { username: string; password: string }) =>
     apiRequest<{ accessToken: string; tokenType: string; expiresIn: string; user: CurrentUser }>('/api/auth/login', { method: 'POST', body }),
   me: () => apiRequest<{ user: CurrentUser }>('/api/auth/me'),
-  listMerchants: () => apiRequest<PagedResult<Merchant>>('/api/merchants', { query: { page: 1, pageSize: 100 } }),
+  listMerchants: (query?: { search?: string; includeInactive?: boolean }) => apiRequest<PagedResult<Merchant>>('/api/merchants', { query: { page: 1, pageSize: 100, search: query?.search, includeInactive: query?.includeInactive } }),
+  getMerchant: (id: string) => apiRequest<Merchant>(`/api/merchants/${id}`),
+  createMerchant: (body: Partial<Merchant>) => apiRequest<Merchant>('/api/merchants', { method: 'POST', body }),
+  updateMerchant: (id: string, body: Partial<Merchant>) => apiRequest<Merchant>(`/api/merchants/${id}`, { method: 'PATCH', body }),
+  disableMerchant: (id: string) => apiRequest<Merchant>(`/api/merchants/${id}`, { method: 'DELETE' }),
   listProducts: () => apiRequest<PagedResult<Product>>('/api/products'),
   getProduct: (id: string) => apiRequest<Product>(`/api/products/${id}`),
+  createProduct: (body: Partial<Product> & { salePrice?: string; stockWarningValue?: number | null }) => apiRequest<Product>('/api/products', { method: 'POST', body }),
+  updateProduct: (id: string, body: Partial<Product> & { salePrice?: string; stockWarningValue?: number | null }) => apiRequest<Product>(`/api/products/${id}`, { method: 'PATCH', body }),
+  disableProduct: (id: string) => apiRequest<Product>(`/api/products/${id}`, { method: 'DELETE' }),
   createOrder: (body: { merchantId: string; items: Array<{ productId: string; quantity: number }>; latitude?: string; longitude?: string; remark?: string }) =>
     apiRequest<Order>('/api/orders', { method: 'POST', body }),
   listOrders: () => apiRequest<PagedResult<Order>>('/api/orders', { query: { page: 1, pageSize: 100 } }),
   getOrder: (id: string) => apiRequest<Order>(`/api/orders/${id}`),
   getReceipt: (id: string) => apiRequest<Receipt>(`/api/orders/${id}/receipt`),
+  productSalesRanking: (range: 'today' | '7d' | 'month') => apiRequest<{ range: string; items: ProductSalesRankingItem[] }>('/api/reports/product-sales-ranking', { query: { range, limit: 20 } }),
+  checkIn: (body: { merchantId: string; latitude: string; longitude: string; address?: string }) => apiRequest('/api/locations/check-in', { method: 'POST', body }),
+  uploadTrackPoints: (points: TrackPoint[]) => apiRequest<{ count: number; items: TrackPoint[] }>('/api/locations/track-points', { method: 'POST', body: { points } }),
+  myTodayTrack: () => apiRequest<{ points: TrackPoint[]; checkIns: Array<{ id: string; merchantId: string; latitude: string; longitude: string; address: string | null; createdAt: string }> }>('/api/locations/my-today-track'),
 };

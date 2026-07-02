@@ -309,3 +309,18 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 ```
 
 当前生产 API 仍是 HTTP，Android Manifest 已允许明文 HTTP。上线前应切换 HTTPS 并收紧明文访问策略。
+
+
+## Android App mobile MVP notes
+
+This round adds the mobile MVP for scanning, ranking, location track, product management and merchant management.
+
+- Barcode scanning uses `react-native-vision-camera` code scanner. Camera permission is requested when entering the scan page. Supported code types include EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39 and QR.
+- Mobile product management supports list/search/create/edit/disable and barcode scan fill-in. The app does not show or submit `costPrice`.
+- Mobile merchant management supports list/search/create/edit/disable, check-in, manual address entry, current-location point fill-in, and AMap POI search when `AMAP_WEB_SERVICE_KEY` is configured.
+- Product sales ranking uses `GET /api/reports/product-sales-ranking` and never returns cost price or profit.
+- Today track uses `POST /api/locations/check-in`, `POST /api/locations/track-points`, and `GET /api/locations/my-today-track`. Only foreground location is used in this MVP.
+- AMap keys must be injected by environment variables at build time: `AMAP_ANDROID_KEY` and `AMAP_WEB_SERVICE_KEY` or `AMAP_WEB_KEY`. Do not commit real keys.
+- Standalone build example: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 AMAP_ANDROID_KEY=your_key AMAP_WEB_SERVICE_KEY=your_key pnpm --filter @xlt/mobile build:android:standalone`.
+- Because `react-native-webview` requires Android minSdk 24, the mobile Android minSdk is now 24. Android 9+ devices remain supported.
+- VisionCamera frame processors are disabled; code scanner remains enabled.

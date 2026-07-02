@@ -288,12 +288,50 @@ async function main() {
   assert(receipt.response.ok && receipt.body.totalAmount === '25.00' && receipt.body.items[0].subtotal === '25.00', 'receipt should include printable totals');
   assert(!JSON.stringify(receipt.body).includes('costPrice'), 'receipt must not include costPrice');
 
+  const salesRanking = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(salesToken) });
+  assert(salesRanking.response.ok, 'salesperson ranking should be readable');
+  assert(salesRanking.body.items[0].quantitySold === 2 && salesRanking.body.items[0].salesAmount === '25.00', 'salesperson ranking should include only own order');
+  assert(!JSON.stringify(salesRanking.body).includes('costPrice'), 'ranking must not include costPrice');
+
+  const adminRanking = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(adminToken) });
+  assert(adminRanking.response.ok && adminRanking.body.items[0].quantitySold === 3 && adminRanking.body.items[0].salesAmount === '37.50', 'admin ranking should include all non-voided orders');
+  const financeRanking = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(financeToken) });
+  assert(financeRanking.response.ok && financeRanking.body.items[0].quantitySold === 3, 'finance ranking should be readable');
+
+  const checkIn = await request('/locations/check-in', {
+    method: 'POST',
+    headers: authHeaders(salesToken),
+    body: JSON.stringify({ merchantId: merchant.id, latitude: '22.1100000', longitude: '114.1100000', address: 'Road 1' }),
+  });
+  assert(checkIn.response.ok && checkIn.body.merchantId === merchant.id, 'check-in should succeed');
+
+  const uploadTrack = await request('/locations/track-points', {
+    method: 'POST',
+    headers: authHeaders(salesToken),
+    body: JSON.stringify({ points: [
+      { latitude: '22.1111111', longitude: '114.1111111', accuracy: '12.50', speed: '1.20', recordedAt: new Date().toISOString() },
+      { latitude: '22.2222222', longitude: '114.2222222', recordedAt: new Date().toISOString() },
+    ] }),
+  });
+  assert(uploadTrack.response.ok && uploadTrack.body.count === 2, 'track point upload should succeed');
+
+  const todayTrack = await request('/locations/my-today-track', { headers: authHeaders(salesToken) });
+  assert(todayTrack.response.ok && todayTrack.body.points.length >= 2 && todayTrack.body.checkIns.length >= 1, 'my today track should include points and check-ins');
+
+  const latestLocations = await request('/locations/users/latest', { headers: authHeaders(adminToken) });
+  assert(latestLocations.response.ok && latestLocations.body.items.length >= 1, 'admin should read latest user locations');
+  const latestDenied = await request('/locations/users/latest', { headers: authHeaders(salesToken) });
+  assert(!latestDenied.response.ok, 'salesperson should not read all latest user locations');
+
   const voided = await request(`/orders/${order.id}/void`, {
     method: 'PATCH',
     headers: authHeaders(adminToken),
     body: JSON.stringify({ reason: 'test void' }),
   });
   assert(voided.response.ok && voided.body.status === 'voided' && voided.body.voidedAt, 'void order should succeed');
+
+  const salesRankingAfterVoid = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(salesToken) });
+  assert(salesRankingAfterVoid.response.ok && salesRankingAfterVoid.body.items.length === 0, 'voided salesperson order should not count in ranking');
 
   const auditRows = await prisma.auditLog.groupBy({ by: ['action', 'success'], _count: { _all: true } });
   const auditKey = new Set(auditRows.map((row) => `${row.action}:${row.success}`));
@@ -310,6 +348,8 @@ async function main() {
     'MERCHANT_DISABLED:true',
     'ORDER_CREATED:true',
     'ORDER_VOIDED:true',
+    'LOCATION_CHECK_IN_CREATED:true',
+    'TRACK_POINTS_UPLOADED:true',
   ]) {
     assert(auditKey.has(key), `missing audit log ${key}`);
   }
