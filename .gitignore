@@ -49,3 +49,11 @@ Thumbs.db
 # Prisma migrations are schema history, not database backups.
 !services/api/prisma/migrations/
 !services/api/prisma/migrations/**/*.sql
+# android build outputs and local SDK/signing files
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/local.properties
+local.properties
+*.apk
+*.aab

@@ -4,14 +4,31 @@ plugins {
     id "com.facebook.react"
 }
 
+react {
+    autolinkLibrariesWithApp()
+}
+
+def jscFlavor = 'org.webkit:android-jsc:+'
+
 android {
     namespace "com.xlt.delivery"
     compileSdk 35
+
     defaultConfig {
         applicationId "com.xlt.delivery"
         minSdkVersion 23
         targetSdkVersion 35
         versionCode 1
         versionName "0.1.0"
+    }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
     }
 }

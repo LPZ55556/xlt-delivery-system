@@ -451,3 +451,53 @@ pnpm --filter @xlt/mobile android
 Android 真机/模拟器构建需要本机安装 Android SDK、Gradle/JDK 环境，并正确配置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`。
 
 下一步建议：接入摄像头扫码、蓝牙热敏打印、高德地图定位与轨迹，并为 App 增加离线订单缓存和网络恢复自动同步。
+
+
+## Android debug APK 构建准备
+
+`apps/mobile` 已确认为 React Native CLI 项目，保留现有 App 页面和 API client，并补齐 Android 原生工程构建入口。Android `applicationId` / `namespace` 为 `com.xlt.delivery`，App 显示名称为“小灵通”。
+
+移动端构建脚本：
+
+```bash
+pnpm --filter @xlt/mobile android
+pnpm --filter @xlt/mobile build:android:debug
+pnpm --filter @xlt/mobile typecheck
+pnpm --filter @xlt/mobile lint
+```
+
+Ubuntu 开发机需要安装 JDK 17 和 Android SDK，并配置：
+
+```bash
+export ANDROID_HOME=/opt/android-sdk
+export ANDROID_SDK_ROOT=/opt/android-sdk
+export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+```
+
+安装 Android SDK 组件示例：
+
+```bash
+yes | sdkmanager --licenses
+sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+```
+
+构建 debug APK：
+
+```bash
+pnpm --filter @xlt/mobile build:android:debug
+```
+
+产物路径为 `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`，APK、AAB、Gradle 缓存、build 产物、正式 keystore 和 `local.properties` 均不得提交。
+
+真机运行前开启 USB 调试并检查设备：
+
+```bash
+adb devices
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile android
+```
+
+移动端 API 地址继续通过 `MOBILE_API_BASE_URL` 读取，不在业务代码中写死地址。真实 `.env` 不提交。
+
+当前扫码、定位、蓝牙打印仍为占位功能；Manifest 仅保留 API 访问所需 `INTERNET` 权限。后续接入真实功能时再精确申请 `CAMERA`、定位和蓝牙运行时权限。详细步骤见 `docs/android-build.md`。
+
+下一步建议：在真机上验证登录和开单链路，随后分阶段接入摄像头扫码、高德定位、蓝牙打印，并补充移动端端到端测试。
