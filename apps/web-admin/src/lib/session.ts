@@ -60,3 +60,13 @@ export function canManageMerchants(user: CurrentUser | null) {
 export function canVoidOrders(user: CurrentUser | null) {
   return hasAnyRole(user, ['super_admin', 'admin']);
 }
+
+export function canManageUsers(user: CurrentUser | null) {
+  return hasAnyRole(user, ['super_admin', 'admin']);
+}
+
+export function canManageTargetUser(actor: CurrentUser | null, targetRole: string) {
+  if (!actor) return false;
+  if (actor.role === 'super_admin') return true;
+  return actor.role === 'admin' && ['finance', 'warehouse', 'salesperson'].includes(targetRole);
+}

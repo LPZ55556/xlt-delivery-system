@@ -37,8 +37,10 @@ export class JwtAuthGuard implements CanActivate {
       id: user.id,
       username: user.username,
       displayName: user.displayName,
+      name: user.displayName,
       role: user.role,
       enabled: user.enabled,
+      isActive: user.enabled,
     };
 
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(REQUIRED_ROLES, [context.getHandler(), context.getClass()]);

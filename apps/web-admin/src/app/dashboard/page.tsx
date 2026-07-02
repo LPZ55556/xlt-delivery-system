@@ -6,25 +6,27 @@ import Link from 'next/link';
 import { AdminShell } from '../../components/AdminShell';
 import { RequireAuth } from '../../components/RequireAuth';
 import { api } from '../../lib/api';
+import { canManageUsers } from '../../lib/session';
 import { formatCents, formatDateTime, moneyToCents, statusLabel } from '../../lib/format';
-import type { Merchant, Order, Product } from '../../lib/types';
+import type { CurrentUser, ManagedUser, Merchant, Order, Product } from '../../lib/types';
 
 type DashboardState = {
   products: Product[];
   merchants: Merchant[];
   orders: Order[];
+  users: ManagedUser[];
 };
 
 export default function DashboardPage() {
   return (
     <RequireAuth>
-      {(user) => <AdminShell user={user}><DashboardContent /></AdminShell>}
+      {(user) => <AdminShell user={user}><DashboardContent user={user} /></AdminShell>}
     </RequireAuth>
   );
 }
 
-function DashboardContent() {
-  const [state, setState] = useState<DashboardState>({ products: [], merchants: [], orders: [] });
+function DashboardContent({ user }: { user: CurrentUser }) {
+  const [state, setState] = useState<DashboardState>({ products: [], merchants: [], orders: [], users: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -34,10 +36,11 @@ function DashboardContent() {
       api.listProducts(),
       api.listMerchants({ page: 1, pageSize: 100 }),
       api.listOrders({ page: 1, pageSize: 100 }),
+      canManageUsers(user) ? api.listUsers({ page: 1, pageSize: 100 }) : Promise.resolve({ items: [] }),
     ])
-      .then(([products, merchants, orders]) => {
+      .then(([products, merchants, orders, users]) => {
         if (!alive) return;
-        setState({ products: products.items, merchants: merchants.items, orders: orders.items });
+        setState({ products: products.items, merchants: merchants.items, orders: orders.items, users: users.items });
       })
       .catch((err) => {
         if (alive) setError(err instanceof Error ? err.message : '加载首页数据失败。');
@@ -54,6 +57,7 @@ function DashboardContent() {
   const todayOrders = state.orders.filter((order) => order.createdAt.slice(0, 10) === todayKey && order.status !== 'voided');
   const todayAmount = todayOrders.reduce((total, order) => total + moneyToCents(order.totalAmount), 0);
   const recentOrders = state.orders.slice(0, 6);
+  const salespersonCount = state.users.filter((item) => item.role === 'salesperson').length;
 
   return (
     <>
@@ -71,6 +75,8 @@ function DashboardContent() {
         <div className="card"><span className="muted">订单数量</span><div className="stat-value">{state.orders.length}</div></div>
         <div className="card"><span className="muted">今日订单</span><div className="stat-value">{todayOrders.length}</div></div>
         <div className="card"><span className="muted">今日营业额</span><div className="stat-value">¥{formatCents(todayAmount)}</div></div>
+        {canManageUsers(user) ? <div className="card"><span className="muted">用户数量</span><div className="stat-value">{state.users.length}</div></div> : null}
+        {canManageUsers(user) ? <div className="card"><span className="muted">配送员数量</span><div className="stat-value">{salespersonCount}</div></div> : null}
       </section>
       <section className="card" style={{ marginTop: 16 }}>
         <h2 className="section-title">最近订单</h2>

@@ -10,8 +10,10 @@ type RequestMeta = { ipAddress?: string; deviceInfo?: string };
 type PublicUser = {
   id: string;
   username: string;
+  name: string;
   displayName: string;
   role: string;
+  isActive: boolean;
   enabled: boolean;
 };
 
@@ -31,8 +33,13 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { username } });
+    if (user && !user.enabled) {
+      await this.writeLoginAudit('USER_LOGIN_FAILED_DISABLED', user.id, username, false, requestMeta);
+      throw new UnauthorizedException('Invalid username or password.');
+    }
+
     const passwordMatches = user ? await bcrypt.compare(password, user.passwordHash) : false;
-    if (!user || !user.enabled || !passwordMatches) {
+    if (!user || !passwordMatches) {
       await this.writeLoginAudit('LOGIN_FAILED', user?.id, username, false, requestMeta);
       throw new UnauthorizedException('Invalid username or password.');
     }
@@ -89,8 +96,10 @@ export class AuthService {
     return {
       id: user.id,
       username: user.username,
+      name: user.displayName,
       displayName: user.displayName,
       role: user.role,
+      isActive: user.enabled,
       enabled: user.enabled,
     };
   }

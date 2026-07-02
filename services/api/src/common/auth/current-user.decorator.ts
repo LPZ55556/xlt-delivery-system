@@ -4,8 +4,10 @@ export type RequestUser = {
   id: string;
   username: string;
   displayName: string;
+  name: string;
   role: string;
   enabled: boolean;
+  isActive: boolean;
 };
 
 export const CurrentUser = createParamDecorator((_data: unknown, context: ExecutionContext): RequestUser | undefined => {

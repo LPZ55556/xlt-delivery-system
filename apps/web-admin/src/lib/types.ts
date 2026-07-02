@@ -3,9 +3,24 @@ export type UserRole = 'super_admin' | 'admin' | 'finance' | 'warehouse' | 'sale
 export type CurrentUser = {
   id: string;
   username: string;
+  name?: string;
   displayName: string;
   role: UserRole;
+  isActive?: boolean;
   enabled: boolean;
+};
+
+export type ManagedUser = {
+  id: string;
+  username: string;
+  name: string;
+  displayName: string;
+  phone: string | null;
+  role: UserRole;
+  isActive: boolean;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Product = {

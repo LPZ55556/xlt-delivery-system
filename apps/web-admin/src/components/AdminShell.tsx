@@ -3,15 +3,14 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { clearSession } from '../lib/session';
+import { canManageUsers, clearSession } from '../lib/session';
 import type { CurrentUser } from '../lib/types';
 
-const navItems = [
+const baseNavItems = [
   ['首页', '/dashboard'],
   ['商品管理', '/products'],
   ['商户管理', '/merchants'],
   ['订单管理', '/orders'],
-  ['系统设置', '/settings'],
 ];
 
 const roleLabels: Record<string, string> = {
@@ -25,6 +24,10 @@ const roleLabels: Record<string, string> = {
 export function AdminShell({ children, user }: { children: React.ReactNode; user: CurrentUser }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const navItems = canManageUsers(user)
+    ? [...baseNavItems, ['用户管理', '/users'], ['系统设置', '/settings']]
+    : [...baseNavItems, ['系统设置', '/settings']];
 
   function logout() {
     clearSession();
@@ -44,7 +47,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
       <div className="workspace">
         <header className="topbar">
           <div>
-            <strong>{user.displayName || user.username}</strong>
+            <strong>{user.name || user.displayName || user.username}</strong>
             <span className="role-pill">{roleLabels[user.role] ?? user.role}</span>
           </div>
           <button className="ghost-button" type="button" onClick={logout}>退出登录</button>

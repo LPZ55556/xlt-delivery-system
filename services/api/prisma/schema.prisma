@@ -26,6 +26,7 @@ model User {
   id           String   @id @default(uuid())
   username     String   @unique
   displayName  String
+  phone        String?
   passwordHash String
   role         UserRole
   enabled      Boolean  @default(true)

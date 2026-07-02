@@ -2,7 +2,6 @@ import { spawn, execFileSync, execSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -41,13 +40,17 @@ function authHeaders(token) {
   return { Authorization: `Bearer ${token}` };
 }
 
-async function login(username, password) {
+async function login(username, password, shouldSucceed = true) {
   const { response, body } = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
-  assert(response.ok, `login failed for ${username}: ${JSON.stringify(body)}`);
-  return body.accessToken;
+  if (shouldSucceed) assert(response.ok, `login failed for ${username}: ${JSON.stringify(body)}`);
+  return { response, body, token: body?.accessToken };
+}
+
+async function createUser(token, payload) {
+  return request('/users', { method: 'POST', headers: authHeaders(token), body: JSON.stringify(payload) });
 }
 
 async function waitForApi() {
@@ -61,11 +64,19 @@ async function waitForApi() {
   throw new Error('API did not become ready.');
 }
 
+function assertNoSensitiveUserFields(payload, label) {
+  const serialized = JSON.stringify(payload);
+  assert(!serialized.includes('passwordHash'), `${label} must not include passwordHash`);
+  assert(!serialized.includes('costPricePasswordHash'), `${label} must not include cost price password hash`);
+  assert(!serialized.includes(jwtSecret), `${label} must not include jwt secret`);
+}
+
 async function main() {
   run('service postgresql start || true');
-  run(`su - postgres -c "psql -tc \\\"SELECT 1 FROM pg_roles WHERE rolname='delivery_user'\\\" | grep -q 1 || psql -c \\\"CREATE ROLE delivery_user WITH LOGIN PASSWORD 'change_me';\\\""`);
-  run(`su - postgres -c "dropdb --if-exists ${dbName}"`);
-  run(`su - postgres -c "createdb -O delivery_user ${dbName}"`);
+  run('runuser -u postgres -- createuser delivery_user || true');
+  run('runuser -u postgres -- psql -c "ALTER ROLE delivery_user WITH LOGIN PASSWORD \'change_me\';"');
+  run(`runuser -u postgres -- dropdb --if-exists ${dbName}`);
+  run(`runuser -u postgres -- createdb -O delivery_user ${dbName}`);
 
   run('pnpm --filter @xlt/api build');
   run(`DATABASE_URL='${databaseUrl}' pnpm --filter @xlt/api exec prisma migrate deploy`);
@@ -90,15 +101,102 @@ async function main() {
     }),
   });
   assert(init.response.ok, 'first run setup should succeed');
-  const adminToken = await login('admin', 'TestAdmin123');
+  const adminLogin = await login('admin', 'TestAdmin123');
+  const adminToken = adminLogin.token;
+  const superAdmin = adminLogin.body.user;
+  assertNoSensitiveUserFields(adminLogin.body, 'login response');
 
   prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
-  const salespersonPasswordHash = await bcrypt.hash('Sales12345', 12);
-  const otherSalespersonPasswordHash = await bcrypt.hash('OtherSales12345', 12);
-  const salesperson = await prisma.user.create({ data: { username: 'sales1', displayName: 'Sales One', passwordHash: salespersonPasswordHash, role: 'salesperson', enabled: true } });
-  await prisma.user.create({ data: { username: 'sales2', displayName: 'Sales Two', passwordHash: otherSalespersonPasswordHash, role: 'salesperson', enabled: true } });
-  const salesToken = await login('sales1', 'Sales12345');
-  const otherSalesToken = await login('sales2', 'OtherSales12345');
+
+  const adminUserCreate = await createUser(adminToken, { username: 'manager1', name: 'Manager One', phone: '13900000001', role: 'admin', password: 'Manager123' });
+  assert(adminUserCreate.response.ok, 'super_admin should create admin');
+  const manager = adminUserCreate.body;
+  const managerLogin = await login('manager1', 'Manager123');
+  const managerToken = managerLogin.token;
+
+  const salesCreate = await createUser(adminToken, { username: 'sales1', name: 'Sales One', phone: '13800000001', role: 'salesperson', password: 'Sales12345' });
+  assert(salesCreate.response.ok, 'super_admin should create salesperson');
+  const salesperson = salesCreate.body;
+  assertNoSensitiveUserFields(salesCreate.body, 'created user response');
+
+  const adminCreatesSales = await createUser(managerToken, { username: 'sales2', name: 'Sales Two', phone: '13800000002', role: 'salesperson', password: 'OtherSales12345' });
+  assert(adminCreatesSales.response.ok, 'admin should create salesperson');
+
+  const adminCreatesSuper = await createUser(managerToken, { username: 'root2', name: 'Root Two', role: 'super_admin', password: 'RootTwo123' });
+  assert(!adminCreatesSuper.response.ok, 'admin should not create super_admin');
+
+  const financeCreate = await createUser(adminToken, { username: 'finance1', name: 'Finance One', role: 'finance', password: 'Finance123' });
+  const warehouseCreate = await createUser(adminToken, { username: 'warehouse1', name: 'Warehouse One', role: 'warehouse', password: 'Warehouse123' });
+  assert(financeCreate.response.ok && warehouseCreate.response.ok, 'super_admin should create finance and warehouse');
+  const financeToken = (await login('finance1', 'Finance123')).token;
+  const warehouseToken = (await login('warehouse1', 'Warehouse123')).token;
+  let salesToken = (await login('sales1', 'Sales12345')).token;
+  const otherSalesToken = (await login('sales2', 'OtherSales12345')).token;
+
+  for (const [roleName, token] of [['finance', financeToken], ['warehouse', warehouseToken], ['salesperson', salesToken]]) {
+    const forbidden = await createUser(token, { username: `${roleName}x`, name: `${roleName} X`, role: 'salesperson', password: 'Forbidden123' });
+    assert(!forbidden.response.ok, `${roleName} should not create users`);
+  }
+
+  const userList = await request('/users?page=1&pageSize=20&search=sales&role=salesperson&isActive=true', { headers: authHeaders(adminToken) });
+  assert(userList.response.ok && userList.body.items.length >= 2, 'user list should support search, role and active filters');
+  assertNoSensitiveUserFields(userList.body, 'user list');
+
+  const userDetail = await request(`/users/${salesperson.id}`, { headers: authHeaders(adminToken) });
+  assert(userDetail.response.ok && userDetail.body.username === 'sales1', 'user detail should return salesperson');
+  assert(userDetail.body.name === 'Sales One' && userDetail.body.phone === '13800000001', 'user detail should include name and phone');
+  assertNoSensitiveUserFields(userDetail.body, 'user detail');
+
+  const updatedUser = await request(`/users/${salesperson.id}`, {
+    method: 'PATCH',
+    headers: authHeaders(adminToken),
+    body: JSON.stringify({ name: 'Sales One Updated', phone: '13800000999', role: 'warehouse' }),
+  });
+  assert(updatedUser.response.ok && updatedUser.body.role === 'warehouse', 'user update and role change should succeed');
+  const updatedBack = await request(`/users/${salesperson.id}`, {
+    method: 'PATCH',
+    headers: authHeaders(adminToken),
+    body: JSON.stringify({ role: 'salesperson' }),
+  });
+  assert(updatedBack.response.ok && updatedBack.body.role === 'salesperson', 'role should change back to salesperson');
+
+  const selfRoleChange = await request(`/users/${superAdmin.id}`, {
+    method: 'PATCH',
+    headers: authHeaders(adminToken),
+    body: JSON.stringify({ role: 'admin' }),
+  });
+  assert(!selfRoleChange.response.ok, 'user should not modify own role');
+
+  const passwordReset = await request(`/users/${salesperson.id}/password`, {
+    method: 'PATCH',
+    headers: authHeaders(managerToken),
+    body: JSON.stringify({ newPassword: 'SalesReset123' }),
+  });
+  assert(passwordReset.response.ok, 'admin should reset salesperson password');
+  salesToken = (await login('sales1', 'SalesReset123')).token;
+
+  const adminResetSuper = await request(`/users/${superAdmin.id}/password`, {
+    method: 'PATCH',
+    headers: authHeaders(managerToken),
+    body: JSON.stringify({ newPassword: 'ShouldNotWork123' }),
+  });
+  assert(!adminResetSuper.response.ok, 'admin should not reset super_admin password');
+
+  const selfDisable = await request(`/users/${salesperson.id}/disable`, { method: 'PATCH', headers: authHeaders(salesToken) });
+  assert(!selfDisable.response.ok, 'user should not disable self');
+
+  const adminDisableSuper = await request(`/users/${superAdmin.id}/disable`, { method: 'PATCH', headers: authHeaders(managerToken) });
+  assert(!adminDisableSuper.response.ok, 'admin should not disable super_admin');
+
+  const disabledUserCreate = await createUser(adminToken, { username: 'disabled1', name: 'Disabled One', role: 'salesperson', password: 'Disabled123' });
+  assert(disabledUserCreate.response.ok, 'disabled test user should be created');
+  const disabledUser = disabledUserCreate.body;
+  const disabled = await request(`/users/${disabledUser.id}/disable`, { method: 'PATCH', headers: authHeaders(adminToken) });
+  assert(disabled.response.ok && disabled.body.isActive === false, 'disable user should succeed');
+  const disabledLogin = await login('disabled1', 'Disabled123', false);
+  assert(!disabledLogin.response.ok, 'disabled user should not login');
+  const enabled = await request(`/users/${disabledUser.id}/enable`, { method: 'PATCH', headers: authHeaders(adminToken) });
+  assert(enabled.response.ok && enabled.body.isActive === true, 'enable user should succeed');
 
   const merchantCreate = await request('/merchants', {
     method: 'POST',
@@ -199,7 +297,20 @@ async function main() {
 
   const auditRows = await prisma.auditLog.groupBy({ by: ['action', 'success'], _count: { _all: true } });
   const auditKey = new Set(auditRows.map((row) => `${row.action}:${row.success}`));
-  for (const key of ['MERCHANT_CREATED:true', 'MERCHANT_UPDATED:true', 'MERCHANT_DISABLED:true', 'ORDER_CREATED:true', 'ORDER_VOIDED:true']) {
+  for (const key of [
+    'USER_CREATED:true',
+    'USER_UPDATED:true',
+    'USER_ROLE_CHANGED:true',
+    'USER_PASSWORD_RESET:true',
+    'USER_DISABLED:true',
+    'USER_ENABLED:true',
+    'USER_LOGIN_FAILED_DISABLED:false',
+    'MERCHANT_CREATED:true',
+    'MERCHANT_UPDATED:true',
+    'MERCHANT_DISABLED:true',
+    'ORDER_CREATED:true',
+    'ORDER_VOIDED:true',
+  ]) {
     assert(auditKey.has(key), `missing audit log ${key}`);
   }
 

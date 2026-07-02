@@ -1,5 +1,5 @@
 import { clearSession, getAccessToken } from './session';
-import type { CurrentUser, Merchant, Order, PagedResult, Product, Receipt } from './types';
+import type { CurrentUser, ManagedUser, Merchant, Order, PagedResult, Product, Receipt } from './types';
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -66,6 +66,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return payload as T;
 }
 
+
+export type UserInput = {
+  username?: string;
+  name: string;
+  phone?: string;
+  role: string;
+  password?: string;
+};
+
 export type ProductInput = {
   name: string;
   barcode: string;
@@ -103,6 +112,14 @@ export const api = {
     costPricePassword: string;
     costPricePasswordConfirm: string;
   }) => apiRequest<{ initialized: boolean; setupAvailable: boolean }>('/api/first-run-setup', { method: 'POST', body }),
+  listUsers: (query?: { page?: number; pageSize?: number; search?: string; role?: string; isActive?: boolean }) =>
+    apiRequest<PagedResult<ManagedUser>>('/api/users', { query }),
+  getUser: (id: string) => apiRequest<ManagedUser>(`/api/users/${id}`),
+  createUser: (body: UserInput) => apiRequest<ManagedUser>('/api/users', { method: 'POST', body }),
+  updateUser: (id: string, body: Omit<UserInput, 'username' | 'password'>) => apiRequest<ManagedUser>(`/api/users/${id}`, { method: 'PATCH', body }),
+  resetUserPassword: (id: string, newPassword: string) => apiRequest<ManagedUser>(`/api/users/${id}/password`, { method: 'PATCH', body: { newPassword } }),
+  disableUser: (id: string) => apiRequest<ManagedUser>(`/api/users/${id}/disable`, { method: 'PATCH' }),
+  enableUser: (id: string) => apiRequest<ManagedUser>(`/api/users/${id}/enable`, { method: 'PATCH' }),
   listProducts: () => apiRequest<PagedResult<Product>>('/api/products'),
   getProduct: (id: string) => apiRequest<Product>(`/api/products/${id}`),
   createProduct: (body: ProductInput) => apiRequest<Product>('/api/products', { method: 'POST', body }),

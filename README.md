@@ -212,6 +212,7 @@ Web 后台位于 `apps/web-admin`，当前已从占位页推进为可用的基�
 /merchants          商户管理
 /orders             订单列表
 /orders/:id         订单详情和小票预览
+/users              用户管理
 /settings           系统设置占位
 ```
 
@@ -297,7 +298,7 @@ GET   /api/orders/:id/receipt
 
 ### 当前仍为占位或后续开发
 
-- 系统设置页仍是占位，后续接入用户管理、角色权限、进价安全密码轮换和审计日志查询。
+- 系统设置页仍是占位，后续接入进价安全密码轮换和审计日志查询。
 - Dashboard 当前用列表接口计算基础统计，后续可增加专用统计接口。
 - Web 后台暂不实现订单创建页面，App 开单页后续接入订单 API。
 - 小票预览暂不连接打印机。
@@ -307,6 +308,77 @@ GET   /api/orders/:id/receipt
 
 1. App 开单页面接入商户、商品和订单创建 API。
 2. Web 后台补充订单创建或补单入口。
-3. 增加用户管理和配送员账号维护。
+3. App 登录和开单页接入配送员账号、商户、商品和订单创建 API。
 4. 为 Dashboard、报表和轨迹增加专用后端查询接口。
-5. 增加 Web 端端到端测试，覆盖登录、商品、商户、订单和小票预览流程。
+5. 增加 Web 端端到端测试，覆盖登录、用户、商品、商户、订单和小票预览流程。
+
+
+## 用户管理与配送员账号
+
+后台用户管理 API 已接入，用于维护管理员、财务、仓库和配送员账号。用户数据复用 `User` 表，接口响应使用 `name` / `isActive` 语义字段，同时兼容当前系统内部的 `displayName` / `enabled` 字段。
+
+用户管理接口：
+
+```text
+GET   /api/users?page=1&pageSize=20&search=关键词&role=salesperson&isActive=true
+GET   /api/users/me
+GET   /api/users/:id
+POST  /api/users
+PATCH /api/users/:id
+PATCH /api/users/:id/password
+PATCH /api/users/:id/disable
+PATCH /api/users/:id/enable
+```
+
+`GET /api/auth/me` 继续保留，`GET /api/users/me` 也可用于获取当前登录用户。两个接口都不会返回 `passwordHash`。
+
+用户角色：
+
+```text
+super_admin   超级管理员
+admin         管理员
+finance       财务
+warehouse     仓库
+salesperson   配送员
+```
+
+权限规则：
+
+- `super_admin` 可以创建、编辑、禁用、启用所有角色用户。
+- `admin` 可以创建、编辑、禁用、启用 `finance` / `warehouse` / `salesperson`。
+- `admin` 不能创建、修改、重置密码、禁用或启用 `super_admin`。
+- `finance` / `warehouse` / `salesperson` 不能管理用户。
+- 用户不能禁用自己，也不能修改自己的角色。
+- 被禁用用户不能登录；如果已登录用户被禁用，后续受保护 API 请求会失败并要求重新登录。
+
+创建配送员账号示例：
+
+```json
+{
+  "username": "zhangsan",
+  "name": "张三",
+  "phone": "13800000000",
+  "role": "salesperson",
+  "password": "初始密码"
+}
+```
+
+密码只提交给后端，后端使用 bcrypt 保存 hash；响应、列表、详情、登录和当前用户接口均不返回 `passwordHash`。重置密码接口只接收 `newPassword`，同样只保存 hash，不返回明文密码。
+
+用户管理审计日志动作：
+
+```text
+USER_CREATED
+USER_UPDATED
+USER_ROLE_CHANGED
+USER_PASSWORD_RESET
+USER_DISABLED
+USER_ENABLED
+USER_LOGIN_FAILED_DISABLED
+```
+
+审计日志记录操作人、目标用户、动作、成功状态和关键变更摘要，不记录明文密码。
+
+Web 后台新增 `/users` 用户管理页面，左侧菜单仅对 `super_admin` / `admin` 显示“用户管理”。页面支持用户列表、搜索、角色筛选、启用状态筛选、新增、编辑、重置密码、禁用和启用。Dashboard 会在有权限时显示用户数量和配送员数量。
+
+下一步建议：App 登录页接入 `POST /api/auth/login`，App 开单页使用配送员账号登录后接入商户、商品和订单创建 API。
