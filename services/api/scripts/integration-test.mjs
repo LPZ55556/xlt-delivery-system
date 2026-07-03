@@ -321,6 +321,32 @@ async function main() {
   assert(overview.response.ok && overview.body.totalSalesAmount === '37.50' && overview.body.totalProfit === '12.90', 'business overview should include protected sales and profit totals');
   assert(JSON.stringify(overview.body).includes('costAmount'), 'overview should include protected cost data');
 
+  const adminResetSecurityPassword = await request('/system-settings/cost-price-password', {
+    method: 'PATCH',
+    headers: authHeaders(managerToken),
+    body: JSON.stringify({ currentPassword: 'Manager123', newCostPricePassword: 'NewCostPrice123', newCostPricePasswordConfirm: 'NewCostPrice123' }),
+  });
+  assert(!adminResetSecurityPassword.response.ok, 'admin should not reset cost price security password');
+
+  const wrongLoginPasswordReset = await request('/system-settings/cost-price-password', {
+    method: 'PATCH',
+    headers: authHeaders(adminToken),
+    body: JSON.stringify({ currentPassword: 'WrongAdminPassword', newCostPricePassword: 'NewCostPrice123', newCostPricePasswordConfirm: 'NewCostPrice123' }),
+  });
+  assert(!wrongLoginPasswordReset.response.ok, 'security password reset should require current login password');
+
+  const resetSecurityPassword = await request('/system-settings/cost-price-password', {
+    method: 'PATCH',
+    headers: authHeaders(adminToken),
+    body: JSON.stringify({ currentPassword: 'TestAdmin123', newCostPricePassword: 'NewCostPrice123', newCostPricePasswordConfirm: 'NewCostPrice123' }),
+  });
+  assert(resetSecurityPassword.response.ok && resetSecurityPassword.body.updated === true, 'super_admin should reset cost price security password');
+
+  const oldPasswordAfterReset = await request('/reports/overview/verify', { method: 'POST', headers: authHeaders(adminToken), body: JSON.stringify({ costPricePassword: 'CostPrice123' }) });
+  assert(!oldPasswordAfterReset.response.ok, 'old cost price security password should stop working after reset');
+  const newPasswordAfterReset = await request('/reports/overview/verify', { method: 'POST', headers: authHeaders(adminToken), body: JSON.stringify({ costPricePassword: 'NewCostPrice123' }) });
+  assert(newPasswordAfterReset.response.ok && newPasswordAfterReset.body.verified === true, 'new cost price security password should work after reset');
+
   const checkIn = await request('/locations/check-in', {
     method: 'POST',
     headers: authHeaders(salesToken),
@@ -382,6 +408,8 @@ async function main() {
     'DATA_OVERVIEW_VERIFY:true',
     'DATA_OVERVIEW_VERIFY:false',
     'DATA_OVERVIEW_VIEWED:true',
+    'COST_PRICE_PASSWORD_RESET:true',
+    'COST_PRICE_PASSWORD_RESET:false',
   ]) {
     assert(auditKey.has(key), `missing audit log ${key}`);
   }

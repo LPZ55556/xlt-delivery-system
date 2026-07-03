@@ -17,6 +17,7 @@ import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { UsersModule } from './modules/users/users.module';
     MerchantsModule,
     OrdersModule,
     ReportsModule,
+    SystemSettingsModule,
     LocationsModule,
     AuditLogsModule,
     FirstRunSetupModule,

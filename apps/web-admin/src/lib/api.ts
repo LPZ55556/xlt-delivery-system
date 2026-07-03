@@ -118,6 +118,8 @@ export const api = {
   createUser: (body: UserInput) => apiRequest<ManagedUser>('/api/users', { method: 'POST', body }),
   updateUser: (id: string, body: Omit<UserInput, 'username' | 'password'>) => apiRequest<ManagedUser>(`/api/users/${id}`, { method: 'PATCH', body }),
   resetUserPassword: (id: string, newPassword: string) => apiRequest<ManagedUser>(`/api/users/${id}/password`, { method: 'PATCH', body: { newPassword } }),
+  resetCostPricePassword: (body: { currentPassword: string; newCostPricePassword: string; newCostPricePasswordConfirm: string }) =>
+    apiRequest<{ updated: boolean }>('/api/system-settings/cost-price-password', { method: 'PATCH', body }),
   disableUser: (id: string) => apiRequest<ManagedUser>(`/api/users/${id}/disable`, { method: 'PATCH' }),
   enableUser: (id: string) => apiRequest<ManagedUser>(`/api/users/${id}/enable`, { method: 'PATCH' }),
   listProducts: () => apiRequest<PagedResult<Product>>('/api/products'),
