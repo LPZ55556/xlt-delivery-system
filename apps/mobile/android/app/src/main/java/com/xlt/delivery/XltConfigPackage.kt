@@ -9,6 +9,7 @@ class XltConfigPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> = listOf(
     XltConfigModule(reactContext),
     XltLocationModule(reactContext),
+    XltPrinterModule(reactContext),
   )
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()

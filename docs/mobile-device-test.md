@@ -214,17 +214,24 @@ sleep 8
 adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|Unable to load script|Network request failed|api.lnize.top|xlt.delivery|fetch|TypeError|HTTP|Cleartext|CLEARTEXT"
 ```
 
+## 销售通真机测试补充
 
-## Android App mobile MVP notes
+推荐真机测试顺序：
 
-This round adds the mobile MVP for scanning, ranking, location track, product management and merchant management.
+1. 构建 standalone APK：
+   `MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone`
+2. 安装并清理旧数据：
+   `adb install -r apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk`
+   `adb shell pm clear com.xlt.delivery`
+3. 启动 App：
+   `adb shell am start -n com.xlt.delivery/.MainActivity`
+4. 查看启动日志：
+   `adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|Bluetooth|Printer|ESC|MPT|Network request failed|Cleartext|com.xlt.delivery"`
 
-- Barcode scanning uses `react-native-vision-camera` code scanner. Camera permission is requested when entering the scan page. Supported code types include EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39 and QR.
-- Mobile product management supports list/search/create/edit/disable and barcode scan fill-in. The app does not show or submit `costPrice`.
-- Mobile merchant management supports list/search/create/edit/disable, check-in, manual address entry, current-location point fill-in, and AMap POI search when `AMAP_WEB_SERVICE_KEY` is configured.
-- Product sales ranking uses `GET /api/reports/product-sales-ranking` and never returns cost price or profit.
-- Today track uses `POST /api/locations/check-in`, `POST /api/locations/track-points`, and `GET /api/locations/my-today-track`. Only foreground location is used in this MVP.
-- AMap keys must be injected by environment variables at build time: `AMAP_ANDROID_KEY` and `AMAP_WEB_SERVICE_KEY` or `AMAP_WEB_KEY`. Do not commit real keys.
-- Standalone build example: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 AMAP_ANDROID_KEY=your_key AMAP_WEB_SERVICE_KEY=your_key pnpm --filter @xlt/mobile build:android:standalone`.
-- Because `react-native-webview` requires Android minSdk 24, the mobile Android minSdk is now 24. Android 9+ devices remain supported.
-- VisionCamera frame processors are disabled; code scanner remains enabled.
+检查点：
+
+- 桌面名称应显示“销售通”。
+- 底部导航应为：首页、订单、开单、更多、设置，不再显示轨迹。
+- 商品和订单普通页面不应显示 `costPrice`、进价、利润。
+- 数据总览必须输入进价查看安全密码，密码错误应失败。
+- 小票管理默认纸宽 72mm，可改为其他毫米值。选择已配对的 `mpt-III` 后可发送 ESC/POS 测试小票；如果打印机未开机、未配对或协议不兼容，App 应显示错误而不是闪退。

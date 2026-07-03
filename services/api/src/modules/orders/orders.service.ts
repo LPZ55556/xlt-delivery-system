@@ -71,6 +71,7 @@ export class OrdersService {
                 productBarcodeSnapshot: product.barcode,
                 productSpecSnapshot: product.spec,
                 salePriceSnapshot: product.salePrice,
+                costPriceSnapshot: product.costPrice,
                 quantity: item.quantity,
                 subtotalSnapshot: product.salePrice.mul(item.quantity),
               };
@@ -102,7 +103,7 @@ export class OrdersService {
   async list(query: OrderListQuery, actor: RequestUser) {
     const page = this.parsePage(query.page);
     const pageSize = this.parsePageSize(query.pageSize);
-    const where = this.buildOrderAccessWhere(actor);
+    const where = await this.buildOrderListWhere(query, actor);
     const [total, orders] = await Promise.all([
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({ where, include: { items: true }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
@@ -181,6 +182,21 @@ export class OrdersService {
     if (orderReadAllRoles.has(actor.role)) return {};
     if (actor.role === 'salesperson') return { salespersonId: actor.id };
     throw new ForbiddenException('Insufficient role to read orders.');
+  }
+
+  private async buildOrderListWhere(query: OrderListQuery, actor: RequestUser): Promise<Prisma.OrderWhereInput> {
+    const where: Prisma.OrderWhereInput = { ...this.buildOrderAccessWhere(actor) };
+    if (query.status) where.status = query.status;
+    const dateRange: Prisma.DateTimeFilter = {};
+    if (query.dateFrom) dateRange.gte = this.parseDateStart(query.dateFrom, 'dateFrom');
+    if (query.dateTo) dateRange.lte = this.parseDateEnd(query.dateTo, 'dateTo');
+    if (dateRange.gte || dateRange.lte) where.createdAt = dateRange;
+    const keyword = query.merchantKeyword?.trim();
+    if (keyword) {
+      const merchants = await this.prisma.merchant.findMany({ where: { name: { contains: keyword, mode: 'insensitive' } }, select: { id: true } });
+      where.merchantId = { in: merchants.map((merchant) => merchant.id) };
+    }
+    return where;
   }
 
   private assertCanReadOrder(order: Order, actor: RequestUser) {
@@ -274,6 +290,20 @@ export class OrdersService {
     if (value === undefined || value === '') return null;
     if (!decimalCoordinatePattern.test(value)) throw new UnprocessableEntityException(`${field} must be a decimal string with up to 7 fraction digits.`);
     return value;
+  }
+
+  private parseDateStart(value: string, field: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new UnprocessableEntityException(`${field} must be YYYY-MM-DD.`);
+    const date = new Date(`${value}T00:00:00.000+08:00`);
+    if (Number.isNaN(date.getTime())) throw new UnprocessableEntityException(`${field} must be valid.`);
+    return date;
+  }
+
+  private parseDateEnd(value: string, field: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new UnprocessableEntityException(`${field} must be YYYY-MM-DD.`);
+    const date = new Date(`${value}T23:59:59.999+08:00`);
+    if (Number.isNaN(date.getTime())) throw new UnprocessableEntityException(`${field} must be valid.`);
+    return date;
   }
 
   private parsePage(value?: string) {

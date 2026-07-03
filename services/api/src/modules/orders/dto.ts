@@ -12,6 +12,10 @@ export type CreateOrderRequest = {
 export type OrderListQuery = {
   page?: string;
   pageSize?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  merchantKeyword?: string;
+  status?: 'created' | 'printed' | 'synced' | 'voided';
 };
 
 export type VoidOrderRequest = {

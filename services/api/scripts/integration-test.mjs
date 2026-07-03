@@ -227,11 +227,14 @@ async function main() {
   const productCreate = await request('/products', {
     method: 'POST',
     headers: authHeaders(adminToken),
-    body: JSON.stringify({ name: 'Cola', barcode: '690000000001', spec: '500ml', salePrice: '12.50', costPrice: '8.20', stock: 100 }),
+    body: JSON.stringify({ name: 'Cola', barcode: '690000000001', category: '??', spec: '500ml', salePrice: '12.50', costPrice: '8.20', stock: 100 }),
   });
   assert(productCreate.response.ok, 'product create should succeed');
   const product = productCreate.body;
   assert(!JSON.stringify(product).includes('costPrice'), 'product response must not include costPrice');
+
+  const categories = await request('/products/categories', { headers: authHeaders(adminToken) });
+  assert(categories.response.ok && categories.body.items.some((item) => item.name === '??'), 'product categories should include custom category');
 
   const badMerchantOrder = await request('/orders', {
     method: 'POST',
@@ -279,6 +282,9 @@ async function main() {
 
   const adminOrders = await request('/orders', { headers: authHeaders(adminToken) });
   assert(adminOrders.response.ok && adminOrders.body.total === 2, 'admin should see all orders');
+  const today = new Date().toISOString().slice(0, 10);
+  const filteredOrders = await request(`/orders?dateFrom=${today}&dateTo=${today}&merchantKeyword=Alpha&status=created`, { headers: authHeaders(adminToken) });
+  assert(filteredOrders.response.ok && filteredOrders.body.total === 2, 'orders should support date, merchant and status filters');
 
   const detail = await request(`/orders/${order.id}`, { headers: authHeaders(salesToken) });
   assert(detail.response.ok && detail.body.items[0].productNameSnapshot === 'Cola', 'order detail should be readable by owner and contain snapshot');
@@ -297,6 +303,23 @@ async function main() {
   assert(adminRanking.response.ok && adminRanking.body.items[0].quantitySold === 3 && adminRanking.body.items[0].salesAmount === '37.50', 'admin ranking should include all non-voided orders');
   const financeRanking = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(financeToken) });
   assert(financeRanking.response.ok && financeRanking.body.items[0].quantitySold === 3, 'finance ranking should be readable');
+  assert(adminRanking.body.items[0].category === '??', 'product ranking should include category');
+
+  const merchantRanking = await request('/reports/merchant-consumption-ranking?range=month', { headers: authHeaders(adminToken) });
+  assert(merchantRanking.response.ok && merchantRanking.body.items[0].orderCount === 2 && merchantRanking.body.items[0].totalAmount === '37.50', 'merchant consumption ranking should aggregate active orders');
+  assert(!JSON.stringify(merchantRanking.body).includes('costPrice'), 'merchant ranking must not include costPrice');
+
+  const overviewDenied = await request('/reports/business-overview?range=month', { headers: { ...authHeaders(salesToken), 'x-cost-price-password': 'CostPrice123' } });
+  assert(!overviewDenied.response.ok, 'salesperson should not view business overview');
+  const overviewWrongPassword = await request('/reports/business-overview?range=month', { headers: { ...authHeaders(adminToken), 'x-cost-price-password': 'WrongPassword' } });
+  assert(!overviewWrongPassword.response.ok, 'business overview should reject wrong cost price password');
+  const overviewVerifyWrong = await request('/reports/overview/verify', { method: 'POST', headers: authHeaders(adminToken), body: JSON.stringify({ costPricePassword: 'WrongPassword' }) });
+  assert(!overviewVerifyWrong.response.ok, 'overview verify should reject wrong security password');
+  const overviewVerify = await request('/reports/overview/verify', { method: 'POST', headers: authHeaders(adminToken), body: JSON.stringify({ costPricePassword: 'CostPrice123' }) });
+  assert(overviewVerify.response.ok && overviewVerify.body.verified === true, 'overview verify should accept correct security password');
+  const overview = await request('/reports/business-overview?range=month', { headers: { ...authHeaders(adminToken), 'x-cost-price-password': 'CostPrice123' } });
+  assert(overview.response.ok && overview.body.totalSalesAmount === '37.50' && overview.body.totalProfit === '12.90', 'business overview should include protected sales and profit totals');
+  assert(JSON.stringify(overview.body).includes('costAmount'), 'overview should include protected cost data');
 
   const checkIn = await request('/locations/check-in', {
     method: 'POST',
@@ -304,6 +327,12 @@ async function main() {
     body: JSON.stringify({ merchantId: merchant.id, latitude: '22.1100000', longitude: '114.1100000', address: 'Road 1' }),
   });
   assert(checkIn.response.ok && checkIn.body.merchantId === merchant.id, 'check-in should succeed');
+  const checkInNoLocation = await request('/locations/check-in', {
+    method: 'POST',
+    headers: authHeaders(salesToken),
+    body: JSON.stringify({ merchantId: merchant.id, address: 'Road 1' }),
+  });
+  assert(checkInNoLocation.response.ok && checkInNoLocation.body.latitude === null, 'check-in should allow missing location');
 
   const uploadTrack = await request('/locations/track-points', {
     method: 'POST',
@@ -350,6 +379,9 @@ async function main() {
     'ORDER_VOIDED:true',
     'LOCATION_CHECK_IN_CREATED:true',
     'TRACK_POINTS_UPLOADED:true',
+    'DATA_OVERVIEW_VERIFY:true',
+    'DATA_OVERVIEW_VERIFY:false',
+    'DATA_OVERVIEW_VIEWED:true',
   ]) {
     assert(auditKey.has(key), `missing audit log ${key}`);
   }

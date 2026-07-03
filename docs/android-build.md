@@ -310,17 +310,21 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 
 当前生产 API 仍是 HTTP，Android Manifest 已允许明文 HTTP。上线前应切换 HTTPS 并收紧明文访问策略。
 
+## 销售通 standalone APK 构建补充
 
-## Android App mobile MVP notes
+构建连接服务端 API 的 standalone APK：
 
-This round adds the mobile MVP for scanning, ranking, location track, product management and merchant management.
+```bash
+cd /home/projects/xlt-delivery-system
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
+```
 
-- Barcode scanning uses `react-native-vision-camera` code scanner. Camera permission is requested when entering the scan page. Supported code types include EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39 and QR.
-- Mobile product management supports list/search/create/edit/disable and barcode scan fill-in. The app does not show or submit `costPrice`.
-- Mobile merchant management supports list/search/create/edit/disable, check-in, manual address entry, current-location point fill-in, and AMap POI search when `AMAP_WEB_SERVICE_KEY` is configured.
-- Product sales ranking uses `GET /api/reports/product-sales-ranking` and never returns cost price or profit.
-- Today track uses `POST /api/locations/check-in`, `POST /api/locations/track-points`, and `GET /api/locations/my-today-track`. Only foreground location is used in this MVP.
-- AMap keys must be injected by environment variables at build time: `AMAP_ANDROID_KEY` and `AMAP_WEB_SERVICE_KEY` or `AMAP_WEB_KEY`. Do not commit real keys.
-- Standalone build example: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 AMAP_ANDROID_KEY=your_key AMAP_WEB_SERVICE_KEY=your_key pnpm --filter @xlt/mobile build:android:standalone`.
-- Because `react-native-webview` requires Android minSdk 24, the mobile Android minSdk is now 24. Android 9+ devices remain supported.
-- VisionCamera frame processors are disabled; code scanner remains enabled.
+APK 产物路径：
+
+```bash
+apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
+```
+
+本轮 App 名称为“销售通”，包名仍为 `com.xlt.delivery`。不要提交 APK、AAB、keystore、JKS、Gradle 缓存或 `local.properties`。
+
+蓝牙热敏打印需要 Android 蓝牙权限。Android 12+ 会请求 `BLUETOOTH_CONNECT` / `BLUETOOTH_SCAN`，Android 11 及以下使用传统蓝牙权限。打印机需先在手机系统蓝牙中配对，App 内“更多 -> 小票管理 -> 打印机管理”会列出已配对设备并可选择 `mpt-III`。小票纸宽默认 72mm，可在 App 内按毫米自定义。

@@ -13,6 +13,11 @@ export class ProductsController {
     return this.products.list();
   }
 
+  @Get('categories')
+  categories() {
+    return this.products.categories();
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.products.getById(id);

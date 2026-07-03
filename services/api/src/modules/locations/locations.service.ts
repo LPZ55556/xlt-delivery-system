@@ -17,18 +17,20 @@ export class LocationsService {
     const merchantId = this.requiredString('merchantId', input.merchantId);
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
     if (!merchant || !merchant.isActive) throw new NotFoundException('Merchant not found or inactive.');
-    const latitude = this.requiredCoordinate('latitude', input.latitude);
-    const longitude = this.requiredCoordinate('longitude', input.longitude);
+    const latitude = this.optionalCoordinate('latitude', input.latitude);
+    const longitude = this.optionalCoordinate('longitude', input.longitude);
     const address = this.optionalString(input.address);
 
     const checkIn = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.merchantCheckIn.create({ data: { userId: actor.id, merchantId, latitude, longitude, address } });
-      await tx.userLatestLocation.upsert({ where: { userId: actor.id }, create: { userId: actor.id, latitude, longitude, address, recordedAt: created.createdAt }, update: { latitude, longitude, address, recordedAt: created.createdAt } });
-      await tx.auditLog.create({ data: { actorId: actor.id, action: 'LOCATION_CHECK_IN_CREATED', targetType: 'merchant', targetId: merchantId, ipAddress: requestMeta?.ipAddress, deviceInfo: requestMeta?.deviceInfo, success: true, metadata: { latitude, longitude } } });
+      const created = await tx.merchantCheckIn.create({ data: { userId: actor.id, merchantId, latitude: latitude ?? undefined, longitude: longitude ?? undefined, address } });
+      if (latitude && longitude) {
+        await tx.userLatestLocation.upsert({ where: { userId: actor.id }, create: { userId: actor.id, latitude, longitude, address, recordedAt: created.createdAt }, update: { latitude, longitude, address, recordedAt: created.createdAt } });
+      }
+      await tx.auditLog.create({ data: { actorId: actor.id, action: 'LOCATION_CHECK_IN_CREATED', targetType: 'merchant', targetId: merchantId, ipAddress: requestMeta?.ipAddress, deviceInfo: requestMeta?.deviceInfo, success: true, metadata: { latitude, longitude, withoutLocation: !(latitude && longitude) } } });
       return created;
     });
 
-    return { id: checkIn.id, userId: checkIn.userId, merchantId: checkIn.merchantId, latitude: checkIn.latitude.toString(), longitude: checkIn.longitude.toString(), address: checkIn.address, createdAt: checkIn.createdAt.toISOString() };
+    return { id: checkIn.id, userId: checkIn.userId, merchantId: checkIn.merchantId, latitude: checkIn.latitude?.toString() ?? null, longitude: checkIn.longitude?.toString() ?? null, address: checkIn.address, createdAt: checkIn.createdAt.toISOString() };
   }
 
   async uploadTrackPoints(input: UploadTrackPointsRequest, actor: RequestUser, requestMeta?: RequestMeta) {
@@ -50,7 +52,7 @@ export class LocationsService {
       this.prisma.locationTrackPoint.findMany({ where: { userId: actor.id, recordedAt: { gte: since } }, orderBy: { recordedAt: 'asc' } }),
       this.prisma.merchantCheckIn.findMany({ where: { userId: actor.id, createdAt: { gte: since } }, orderBy: { createdAt: 'asc' } }),
     ]);
-    return { points: points.map((point) => this.toTrackPoint(point)), checkIns: checkIns.map((item) => ({ id: item.id, merchantId: item.merchantId, latitude: item.latitude.toString(), longitude: item.longitude.toString(), address: item.address, createdAt: item.createdAt.toISOString() })) };
+    return { points: points.map((point) => this.toTrackPoint(point)), checkIns: checkIns.map((item) => ({ id: item.id, merchantId: item.merchantId, latitude: item.latitude?.toString() ?? null, longitude: item.longitude?.toString() ?? null, address: item.address, createdAt: item.createdAt.toISOString() })) };
   }
 
   async latestUsers(actor: RequestUser) {
@@ -74,5 +76,6 @@ export class LocationsService {
   private requiredString(field: string, value?: string) { const normalized = value?.trim(); if (!normalized) throw new UnprocessableEntityException(`${field} is required.`); return normalized; }
   private optionalString(value?: string) { const normalized = value?.trim(); return normalized || null; }
   private requiredCoordinate(field: string, value?: string) { if (!value || !decimalCoordinatePattern.test(value)) throw new UnprocessableEntityException(`${field} must be a decimal string with up to 7 fraction digits.`); return value; }
+  private optionalCoordinate(field: string, value?: string) { if (value === undefined || value === '') return null; if (!decimalCoordinatePattern.test(value)) throw new UnprocessableEntityException(`${field} must be a decimal string with up to 7 fraction digits.`); return value; }
   private optionalMetric(field: string, value?: string) { if (value === undefined || value === '') return null; if (!decimalMetricPattern.test(value)) throw new UnprocessableEntityException(`${field} must be a decimal string with up to 2 fraction digits.`); return value; }
 }

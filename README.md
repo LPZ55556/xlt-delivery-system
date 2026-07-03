@@ -633,7 +633,7 @@ cd /opt/xlt-delivery-system
 docker compose --env-file .env.production -f docker-compose.prod.yml config
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 
-# ??????? docker-compose v1????
+# 如果使用 docker-compose v1：
 docker-compose --env-file .env.production -f docker-compose.prod.yml config
 docker-compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 ```
@@ -678,17 +678,26 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 
 如果 App 可以打开但登录失败，先确认 Web 后台已完成首次初始化，并已创建 `salesperson` 配送员账号。若商户或商品为空，先在 Web 后台创建至少 1 个启用商户和 1 个启用商品。
 
+## Android App 销售通移动端调整
 
-## Android App mobile MVP notes
+- App 桌面显示名称已从“小灵通”调整为“销售通”，Android 包名、applicationId、namespace 仍保持 `com.xlt.delivery`。
+- 底部导航调整为：首页、订单、开单、更多、设置；App 端暂时移除配送轨迹入口，保留到店确认能力。
+- “更多”页面集中放置：数据总览、商户消费榜单、商品管理、商户管理、小票管理、商品销量排行。
+- 订单列表支持 `dateFrom`、`dateTo`、`merchantKeyword`、`status` 筛选；配送员仍只能查看自己的订单。
+- 开单商户选择会尝试获取当前位置，并按商户经纬度距离从近到远排序；定位失败时不阻止开单。
+- 到店确认不再依赖距离判断；定位失败时允许提交不含经纬度的到店确认。
+- 商品管理支持分类筛选，新增/编辑商品可选择已有分类或输入自定义分类。移动端普通页面不显示 `costPrice`、进价、利润。
+- 数据总览属于高敏感页面，仅 `super_admin`、`admin`、`finance` 可访问，且必须输入进价查看安全密码并由后端校验。安全密码验证成功/失败及查看行为会写入审计日志。
+- 小票模板默认标题为“销售单”，纸宽默认 72mm，支持在 App 内自定义纸宽（毫米）、标题和底部文字。小票格式为“商品名称 / 单价 / 数量 / 合计 / 总计”，不显示进价和利润。
+- 小票管理包含打印机管理，当前按 Classic Bluetooth SPP + ESC/POS 文本指令适配常见热敏打印机，用户设备 `mpt-III` 可从已配对设备中选择保存并发送测试小票。
 
-This round adds the mobile MVP for scanning, ranking, location track, product management and merchant management.
+新增或更新的后端接口：
 
-- Barcode scanning uses `react-native-vision-camera` code scanner. Camera permission is requested when entering the scan page. Supported code types include EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39 and QR.
-- Mobile product management supports list/search/create/edit/disable and barcode scan fill-in. The app does not show or submit `costPrice`.
-- Mobile merchant management supports list/search/create/edit/disable, check-in, manual address entry, current-location point fill-in, and AMap POI search when `AMAP_WEB_SERVICE_KEY` is configured.
-- Product sales ranking uses `GET /api/reports/product-sales-ranking` and never returns cost price or profit.
-- Today track uses `POST /api/locations/check-in`, `POST /api/locations/track-points`, and `GET /api/locations/my-today-track`. Only foreground location is used in this MVP.
-- AMap keys must be injected by environment variables at build time: `AMAP_ANDROID_KEY` and `AMAP_WEB_SERVICE_KEY` or `AMAP_WEB_KEY`. Do not commit real keys.
-- Standalone build example: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 AMAP_ANDROID_KEY=your_key AMAP_WEB_SERVICE_KEY=your_key pnpm --filter @xlt/mobile build:android:standalone`.
-- Because `react-native-webview` requires Android minSdk 24, the mobile Android minSdk is now 24. Android 9+ devices remain supported.
-- VisionCamera frame processors are disabled; code scanner remains enabled.
+- `GET /api/orders?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&merchantKeyword=xxx&status=created`
+- `GET /api/products/categories`
+- `GET /api/reports/merchant-consumption-ranking?range=today|7d|month&limit=20`
+- `POST /api/reports/overview/verify`
+- `GET /api/reports/business-overview?range=today|7d|month`，需请求头 `x-cost-price-password`
+- `POST /api/locations/check-in` 支持无经纬度到店确认
+
+部署更新提醒：本轮新增 Prisma migration，服务端更新代码后需要执行 `pnpm --filter @xlt/api exec prisma migrate deploy` 或在生产 API 容器内执行等价迁移命令，禁止执行 `migrate reset`。

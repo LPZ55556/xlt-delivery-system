@@ -27,6 +27,16 @@ export class ProductsService {
     return this.toPublicProduct(product);
   }
 
+  async categories() {
+    const rows = await this.prisma.product.findMany({
+      where: { category: { not: null } },
+      select: { category: true },
+      orderBy: { category: 'asc' },
+    });
+    const names = Array.from(new Set(rows.map((row) => row.category?.trim()).filter((value): value is string => Boolean(value))));
+    return { items: names.map((name) => ({ name })) };
+  }
+
   async create(input: CreateProductRequest, actor: RequestUser, requestMeta?: RequestMeta) {
     const data = this.buildCreateData(input);
     try {

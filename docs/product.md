@@ -491,17 +491,13 @@ Redis 不允许暴露公网。
 
 第一阶段不要一次性实现完整业务。
 
+## 销售通移动端 MVP 调整
 
-## Android App mobile MVP notes
-
-This round adds the mobile MVP for scanning, ranking, location track, product management and merchant management.
-
-- Barcode scanning uses `react-native-vision-camera` code scanner. Camera permission is requested when entering the scan page. Supported code types include EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39 and QR.
-- Mobile product management supports list/search/create/edit/disable and barcode scan fill-in. The app does not show or submit `costPrice`.
-- Mobile merchant management supports list/search/create/edit/disable, check-in, manual address entry, current-location point fill-in, and AMap POI search when `AMAP_WEB_SERVICE_KEY` is configured.
-- Product sales ranking uses `GET /api/reports/product-sales-ranking` and never returns cost price or profit.
-- Today track uses `POST /api/locations/check-in`, `POST /api/locations/track-points`, and `GET /api/locations/my-today-track`. Only foreground location is used in this MVP.
-- AMap keys must be injected by environment variables at build time: `AMAP_ANDROID_KEY` and `AMAP_WEB_SERVICE_KEY` or `AMAP_WEB_KEY`. Do not commit real keys.
-- Standalone build example: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 AMAP_ANDROID_KEY=your_key AMAP_WEB_SERVICE_KEY=your_key pnpm --filter @xlt/mobile build:android:standalone`.
-- Because `react-native-webview` requires Android minSdk 24, the mobile Android minSdk is now 24. Android 9+ devices remain supported.
-- VisionCamera frame processors are disabled; code scanner remains enabled.
+- App 显示名称调整为“销售通”，包名继续使用 `com.xlt.delivery`，避免影响升级、权限和高德 Key 绑定。
+- App 主导航改为“首页 / 订单 / 开单 / 更多 / 设置”，配送轨迹功能从 App 主入口移除，后端历史位置表和接口可保留用于兼容和后续扩展。
+- 到店确认只记录业务动作，不再按距离判断是否允许确认；定位可用时附带经纬度，定位不可用时仍允许确认。
+- 开单商户列表可按手机当前位置到商户坐标的 Haversine 距离排序；该距离仅作展示和排序参考，不作为后端可信规则。
+- 商品分类先采用商品 `category` 字符串方案，移动端可选择已有分类或输入自定义分类名。
+- 数据总览页面集中展示进价、利润、毛利估算等敏感经营数据，必须经过进价查看安全密码后端验证，普通开单、订单、小票、排行页面仍不得显示 `costPrice`。
+- 商户消费榜单按时间范围统计商户订单数、消费金额和最近下单时间，只统计未作废订单，不显示进价或利润。
+- 小票模板面向热敏纸，默认纸宽 72mm，支持自定义纸宽、标题和底部文字。蓝牙打印 MVP 使用 ESC/POS 文本打印，优先适配已配对的 `mpt-III` 设备。

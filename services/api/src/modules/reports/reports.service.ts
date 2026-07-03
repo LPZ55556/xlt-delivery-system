@@ -1,86 +1,54 @@
 import { ForbiddenException, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import type { RequestUser } from '../../common/auth/current-user.decorator';
 import { PrismaService } from '../../database/prisma.service';
-import type { ProductSalesRankingQuery } from './dto';
+import type { BusinessOverviewQuery, MerchantConsumptionRankingQuery, ProductSalesRankingQuery } from './dto';
 
+type RequestMeta = { ipAddress?: string; deviceInfo?: string };
 const allSalesRankingRoles = new Set(['super_admin', 'admin', 'finance']);
+const overviewRoles = new Set(['super_admin', 'admin', 'finance']);
 
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async productSalesRanking(query: ProductSalesRankingQuery, actor: RequestUser) {
-    const range = query.range ?? 'today';
-    const limit = this.parseLimit(query.limit);
-    const since = this.rangeStart(range);
-    const salespersonId = this.resolveSalespersonId(query.salespersonId, actor);
-
-    const rows = await this.prisma.orderItem.findMany({
-      where: {
-        order: {
-          status: { not: 'voided' },
-          createdAt: { gte: since },
-          ...(salespersonId ? { salespersonId } : {}),
-        },
-      },
-      select: {
-        productId: true,
-        productNameSnapshot: true,
-        productBarcodeSnapshot: true,
-        quantity: true,
-        subtotalSnapshot: true,
-      },
-    });
-
-    const byProduct = new Map<string, { productId: string; productName: string; barcode: string; quantitySold: number; salesAmount: Prisma.Decimal }>();
-    for (const row of rows) {
-      const existing = byProduct.get(row.productId) ?? {
-        productId: row.productId,
-        productName: row.productNameSnapshot,
-        barcode: row.productBarcodeSnapshot,
-        quantitySold: 0,
-        salesAmount: new Prisma.Decimal(0),
-      };
-      existing.quantitySold += row.quantity;
-      existing.salesAmount = existing.salesAmount.plus(row.subtotalSnapshot);
-      byProduct.set(row.productId, existing);
-    }
-
-    return {
-      range,
-      items: Array.from(byProduct.values())
-        .sort((a, b) => b.quantitySold - a.quantitySold || Number(b.salesAmount.minus(a.salesAmount)))
-        .slice(0, limit)
-        .map((item, index) => ({
-          rank: index + 1,
-          productId: item.productId,
-          productName: item.productName,
-          barcode: item.barcode,
-          quantitySold: item.quantitySold,
-          salesAmount: item.salesAmount.toFixed(2),
-        })),
-    };
+    const range = query.range ?? 'today'; const limit = this.parseLimit(query.limit); const since = this.rangeStart(range); const salespersonId = this.resolveSalespersonId(query.salespersonId, actor);
+    const rows = await this.prisma.orderItem.findMany({ where: { order: { status: { not: 'voided' }, createdAt: { gte: since }, ...(salespersonId ? { salespersonId } : {}) } }, select: { productId: true, productNameSnapshot: true, productBarcodeSnapshot: true, quantity: true, subtotalSnapshot: true } });
+    const productIds = Array.from(new Set(rows.map((row) => row.productId))); const products = await this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, category: true } }); const categoryMap = new Map(products.map((product) => [product.id, product.category ?? null]));
+    const byProduct = new Map<string, { productId: string; productName: string; barcode: string; category: string | null; quantitySold: number; salesAmount: Prisma.Decimal }>();
+    for (const row of rows) { const existing = byProduct.get(row.productId) ?? { productId: row.productId, productName: row.productNameSnapshot, barcode: row.productBarcodeSnapshot, category: categoryMap.get(row.productId) ?? null, quantitySold: 0, salesAmount: new Prisma.Decimal(0) }; existing.quantitySold += row.quantity; existing.salesAmount = existing.salesAmount.plus(row.subtotalSnapshot); byProduct.set(row.productId, existing); }
+    return { range, items: Array.from(byProduct.values()).sort((a, b) => b.quantitySold - a.quantitySold || Number(b.salesAmount.minus(a.salesAmount))).slice(0, limit).map((item, index) => ({ rank: index + 1, productId: item.productId, productName: item.productName, barcode: item.barcode, category: item.category, quantitySold: item.quantitySold, salesAmount: item.salesAmount.toFixed(2) })) };
   }
 
-  private resolveSalespersonId(requestedSalespersonId: string | undefined, actor: RequestUser) {
-    if (actor.role === 'salesperson') return actor.id;
-    if (allSalesRankingRoles.has(actor.role)) return requestedSalespersonId?.trim() || undefined;
-    if (actor.role === 'warehouse') return requestedSalespersonId?.trim() || undefined;
-    throw new ForbiddenException('Insufficient role to view reports.');
+  async merchantConsumptionRanking(query: MerchantConsumptionRankingQuery, actor: RequestUser) {
+    const range = query.range ?? 'today'; const limit = this.parseLimit(query.limit); const since = this.rangeStart(range); const salespersonId = this.resolveSalespersonId(query.salespersonId, actor);
+    const orders = await this.prisma.order.findMany({ where: { status: { not: 'voided' }, createdAt: { gte: since }, ...(salespersonId ? { salespersonId } : {}) }, select: { merchantId: true, totalAmount: true, createdAt: true } });
+    const merchantIds = Array.from(new Set(orders.map((order) => order.merchantId))); const merchants = await this.prisma.merchant.findMany({ where: { id: { in: merchantIds } }, select: { id: true, name: true } }); const merchantMap = new Map(merchants.map((merchant) => [merchant.id, merchant.name]));
+    const byMerchant = new Map<string, { merchantId: string; merchantName: string; orderCount: number; totalAmount: Prisma.Decimal; lastOrderAt: Date }>();
+    for (const order of orders) { const existing = byMerchant.get(order.merchantId) ?? { merchantId: order.merchantId, merchantName: merchantMap.get(order.merchantId) ?? '未知商户', orderCount: 0, totalAmount: new Prisma.Decimal(0), lastOrderAt: order.createdAt }; existing.orderCount += 1; existing.totalAmount = existing.totalAmount.plus(order.totalAmount); if (order.createdAt > existing.lastOrderAt) existing.lastOrderAt = order.createdAt; byMerchant.set(order.merchantId, existing); }
+    return { range, items: Array.from(byMerchant.values()).sort((a, b) => Number(b.totalAmount.minus(a.totalAmount)) || b.orderCount - a.orderCount).slice(0, limit).map((item, index) => ({ rank: index + 1, merchantId: item.merchantId, merchantName: item.merchantName, orderCount: item.orderCount, totalAmount: item.totalAmount.toFixed(2), lastOrderAt: item.lastOrderAt.toISOString() })) };
   }
 
-  private parseLimit(value?: string) {
-    const limit = Number(value ?? 20);
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new UnprocessableEntityException('limit must be an integer between 1 and 100.');
-    return limit;
+  async verifyOverviewPassword(costPricePassword: string | undefined, actor: RequestUser, requestMeta?: RequestMeta) { await this.assertOverviewPassword(costPricePassword, actor, requestMeta, 'DATA_OVERVIEW_VERIFY'); return { verified: true }; }
+
+  async businessOverview(query: BusinessOverviewQuery, costPricePassword: string | undefined, actor: RequestUser, requestMeta?: RequestMeta) {
+    await this.assertOverviewPassword(costPricePassword, actor, requestMeta, 'DATA_OVERVIEW_VIEWED'); const where = this.overviewWhere(query); const orders = await this.prisma.order.findMany({ where, include: { items: true }, orderBy: { createdAt: 'desc' } });
+    const productMap = await this.currentProductMap(orders.flatMap((order) => order.items.map((item) => item.productId))); let totalSalesAmount = new Prisma.Decimal(0); let totalProfit = new Prisma.Decimal(0);
+    const productSales = new Map<string, { productId: string; productName: string; barcode: string; category: string | null; quantitySold: number; salesAmount: Prisma.Decimal; costAmount: Prisma.Decimal; profitAmount: Prisma.Decimal }>();
+    const merchantIds = Array.from(new Set(orders.map((order) => order.merchantId))); const merchants = await this.prisma.merchant.findMany({ where: { id: { in: merchantIds } }, select: { id: true, name: true } }); const merchantMap = new Map(merchants.map((merchant) => [merchant.id, merchant.name]));
+    const merchantStats = new Map<string, { merchantId: string; merchantName: string; orderCount: number; totalAmount: Prisma.Decimal; lastOrderAt: Date }>(); const salespersonIds = Array.from(new Set(orders.map((order) => order.salespersonId))); const users = await this.prisma.user.findMany({ where: { id: { in: salespersonIds } }, select: { id: true, displayName: true, username: true } }); const userMap = new Map(users.map((user) => [user.id, user.displayName || user.username])); const salespersonStats = new Map<string, { salespersonId: string; salespersonName: string; orderCount: number; totalAmount: Prisma.Decimal }>();
+    for (const order of orders) { totalSalesAmount = totalSalesAmount.plus(order.totalAmount); const merchant = merchantStats.get(order.merchantId) ?? { merchantId: order.merchantId, merchantName: merchantMap.get(order.merchantId) ?? '未知商户', orderCount: 0, totalAmount: new Prisma.Decimal(0), lastOrderAt: order.createdAt }; merchant.orderCount += 1; merchant.totalAmount = merchant.totalAmount.plus(order.totalAmount); if (order.createdAt > merchant.lastOrderAt) merchant.lastOrderAt = order.createdAt; merchantStats.set(order.merchantId, merchant); const salesperson = salespersonStats.get(order.salespersonId) ?? { salespersonId: order.salespersonId, salespersonName: userMap.get(order.salespersonId) ?? '未知配送员', orderCount: 0, totalAmount: new Prisma.Decimal(0) }; salesperson.orderCount += 1; salesperson.totalAmount = salesperson.totalAmount.plus(order.totalAmount); salespersonStats.set(order.salespersonId, salesperson); for (const item of order.items) { const currentProduct = productMap.get(item.productId); const costPrice = item.costPriceSnapshot ?? currentProduct?.costPrice ?? new Prisma.Decimal(0); const costAmount = costPrice.mul(item.quantity); const profitAmount = item.subtotalSnapshot.minus(costAmount); totalProfit = totalProfit.plus(profitAmount); const product = productSales.get(item.productId) ?? { productId: item.productId, productName: item.productNameSnapshot, barcode: item.productBarcodeSnapshot, category: currentProduct?.category ?? null, quantitySold: 0, salesAmount: new Prisma.Decimal(0), costAmount: new Prisma.Decimal(0), profitAmount: new Prisma.Decimal(0) }; product.quantitySold += item.quantity; product.salesAmount = product.salesAmount.plus(item.subtotalSnapshot); product.costAmount = product.costAmount.plus(costAmount); product.profitAmount = product.profitAmount.plus(profitAmount); productSales.set(item.productId, product); } }
+    return { totalSalesAmount: totalSalesAmount.toFixed(2), totalOrders: orders.length, totalProfit: totalProfit.toFixed(2), profitNote: '优先按订单成本快照计算；历史订单无成本快照时按当前商品进价估算。', productSalesSummary: Array.from(productSales.values()).sort((a,b)=>b.quantitySold-a.quantitySold).map((item)=>({ productId: item.productId, productName: item.productName, barcode: item.barcode, category: item.category, quantitySold: item.quantitySold, salesAmount: item.salesAmount.toFixed(2), costAmount: item.costAmount.toFixed(2), profitAmount: item.profitAmount.toFixed(2) })), merchantConsumptionSummary: Array.from(merchantStats.values()).sort((a,b)=>Number(b.totalAmount.minus(a.totalAmount))).map((item)=>({ merchantId: item.merchantId, merchantName: item.merchantName, orderCount: item.orderCount, totalAmount: item.totalAmount.toFixed(2), lastOrderAt: item.lastOrderAt.toISOString() })), salespersonSummary: Array.from(salespersonStats.values()).sort((a,b)=>Number(b.totalAmount.minus(a.totalAmount))).map((item)=>({ salespersonId: item.salespersonId, salespersonName: item.salespersonName, orderCount: item.orderCount, totalAmount: item.totalAmount.toFixed(2) })) };
   }
 
-  private rangeStart(range: string) {
-    const now = new Date();
-    if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (range === '7d') return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-    throw new UnprocessableEntityException('range must be today, 7d or month.');
-  }
+  private async assertOverviewPassword(costPricePassword: string | undefined, actor: RequestUser, requestMeta: RequestMeta | undefined, action: string) { if (!overviewRoles.has(actor.role)) throw new ForbiddenException('Insufficient role to view business overview.'); const setupState = await this.prisma.firstRunSetupState.findFirst({ where: { completed: true }, orderBy: { completedAt: 'desc' } }); const matches = Boolean(setupState?.costPricePasswordHash) && await bcrypt.compare(costPricePassword ?? '', setupState!.costPricePasswordHash!); await this.prisma.auditLog.create({ data: { actorId: actor.id, action, targetType: 'reports', targetId: 'business-overview', ipAddress: requestMeta?.ipAddress, deviceInfo: requestMeta?.deviceInfo, success: matches, metadata: matches ? Prisma.JsonNull : { reason: 'password' } } }); if (!matches) throw new ForbiddenException('Cost price password is invalid.'); }
+  private overviewWhere(query: BusinessOverviewQuery): Prisma.OrderWhereInput { const range = query.range ?? 'today'; const createdAt: Prisma.DateTimeFilter = {}; if (query.dateFrom) createdAt.gte = this.parseDateStart(query.dateFrom, 'dateFrom'); if (query.dateTo) createdAt.lte = this.parseDateEnd(query.dateTo, 'dateTo'); if (!createdAt.gte && !createdAt.lte) createdAt.gte = this.rangeStart(range); return { status: { not: 'voided' }, createdAt }; }
+  private async currentProductMap(ids: string[]) { const products = await this.prisma.product.findMany({ where: { id: { in: Array.from(new Set(ids)) } }, select: { id: true, category: true, costPrice: true } }); return new Map(products.map((product) => [product.id, product])); }
+  private resolveSalespersonId(requestedSalespersonId: string | undefined, actor: RequestUser) { if (actor.role === 'salesperson') return actor.id; if (allSalesRankingRoles.has(actor.role)) return requestedSalespersonId?.trim() || undefined; if (actor.role === 'warehouse') return requestedSalespersonId?.trim() || undefined; throw new ForbiddenException('Insufficient role to view reports.'); }
+  private parseLimit(value?: string) { const limit = Number(value ?? 20); if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new UnprocessableEntityException('limit must be an integer between 1 and 100.'); return limit; }
+  private rangeStart(range: string) { const now = new Date(); if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()); if (range === '7d') return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1); throw new UnprocessableEntityException('range must be today, 7d or month.'); }
+  private parseDateStart(value: string, field: string) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new UnprocessableEntityException(`${field} must be YYYY-MM-DD.`); const date = new Date(`${value}T00:00:00.000+08:00`); if (Number.isNaN(date.getTime())) throw new UnprocessableEntityException(`${field} must be valid.`); return date; }
+  private parseDateEnd(value: string, field: string) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new UnprocessableEntityException(`${field} must be YYYY-MM-DD.`); const date = new Date(`${value}T23:59:59.999+08:00`); if (Number.isNaN(date.getTime())) throw new UnprocessableEntityException(`${field} must be valid.`); return date; }
 }

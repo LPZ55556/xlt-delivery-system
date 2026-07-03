@@ -383,7 +383,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml config
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 docker compose --env-file .env.production -f docker-compose.prod.yml ps
 
-# Ubuntu ??????? docker-compose v1????
+# Ubuntu 服务端如果使用 docker-compose v1：
 docker-compose --env-file .env.production -f docker-compose.prod.yml config
 docker-compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 docker-compose --env-file .env.production -f docker-compose.prod.yml ps
@@ -437,17 +437,17 @@ MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:an
 
 回滚优先使用用户已创建的服务端快照。正式运行后需要定期备份 PostgreSQL 数据。PostgreSQL `5432`、Redis `6379` 只绑定服务端本机 `127.0.0.1`，不得通过 frpc 暴露公网。frpc 只代理 API 和 Web，不代理数据库、Redis 或 frps dashboard。
 
+## 本轮服务端更新部署说明
 
-## Android App mobile MVP notes
+本轮新增订单筛选、商品分类列表、商户消费榜单、数据总览、安全密码校验、订单明细成本快照和无定位到店确认兼容。生产服务端拉取代码后需要执行 Prisma migration deploy，不要执行 `migrate reset`。
 
-This round adds the mobile MVP for scanning, ranking, location track, product management and merchant management.
+示例：
 
-- Barcode scanning uses `react-native-vision-camera` code scanner. Camera permission is requested when entering the scan page. Supported code types include EAN-13, EAN-8, UPC-A, UPC-E, Code128, Code39 and QR.
-- Mobile product management supports list/search/create/edit/disable and barcode scan fill-in. The app does not show or submit `costPrice`.
-- Mobile merchant management supports list/search/create/edit/disable, check-in, manual address entry, current-location point fill-in, and AMap POI search when `AMAP_WEB_SERVICE_KEY` is configured.
-- Product sales ranking uses `GET /api/reports/product-sales-ranking` and never returns cost price or profit.
-- Today track uses `POST /api/locations/check-in`, `POST /api/locations/track-points`, and `GET /api/locations/my-today-track`. Only foreground location is used in this MVP.
-- AMap keys must be injected by environment variables at build time: `AMAP_ANDROID_KEY` and `AMAP_WEB_SERVICE_KEY` or `AMAP_WEB_KEY`. Do not commit real keys.
-- Standalone build example: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 AMAP_ANDROID_KEY=your_key AMAP_WEB_SERVICE_KEY=your_key pnpm --filter @xlt/mobile build:android:standalone`.
-- Because `react-native-webview` requires Android minSdk 24, the mobile Android minSdk is now 24. Android 9+ devices remain supported.
-- VisionCamera frame processors are disabled; code scanner remains enabled.
+```bash
+cd /opt/xlt-delivery-system
+git pull
+docker-compose -f docker-compose.prod.yml up -d --build
+docker-compose -f docker-compose.prod.yml exec api pnpm --filter @xlt/api exec prisma migrate deploy
+```
+
+敏感配置仍只保存在服务端本地 `.env.production` 和 `deploy/frpc.toml`，不要提交到 Git。数据库、Redis 不允许暴露公网。数据总览接口需要登录权限和进价查看安全密码，普通订单、商品、榜单和小票接口不得返回 `costPrice`。
