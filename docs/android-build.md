@@ -328,3 +328,12 @@ apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
 本轮 App 名称为“销售通”，包名仍为 `com.xlt.delivery`。不要提交 APK、AAB、keystore、JKS、Gradle 缓存或 `local.properties`。
 
 蓝牙热敏打印需要 Android 蓝牙权限。Android 12+ 会请求 `BLUETOOTH_CONNECT` / `BLUETOOTH_SCAN`，Android 11 及以下使用传统蓝牙权限。打印机需先在手机系统蓝牙中配对，App 内“更多 -> 小票管理 -> 打印机管理”会列出已配对设备并可选择 `mpt-III`。小票纸宽默认 72mm，可在 App 内按毫米自定义。
+
+
+## Building APKs for a Selected API
+
+The default API is injected at build time with `MOBILE_API_BASE_URL`, but the login page can override it locally on the phone. The override is stored only in App local storage and is not committed.
+
+```bash
+MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
+```

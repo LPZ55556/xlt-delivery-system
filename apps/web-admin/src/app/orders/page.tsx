@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminShell } from '../../components/AdminShell';
 import { RequireAuth } from '../../components/RequireAuth';
 import { api } from '../../lib/api';
@@ -10,100 +10,15 @@ import { canVoidOrders } from '../../lib/session';
 import { formatDateTime, statusLabel } from '../../lib/format';
 import type { CurrentUser, Order } from '../../lib/types';
 
-export default function OrdersPage() {
-  return (
-    <RequireAuth>
-      {(user) => <AdminShell user={user}><OrdersContent user={user} /></AdminShell>}
-    </RequireAuth>
-  );
-}
-
+export default function OrdersPage() { return <RequireAuth>{(user) => <AdminShell user={user}><OrdersContent user={user} /></AdminShell>}</RequireAuth>; }
+function dateOnly(date: Date) { return date.toISOString().slice(0, 10); }
+function presetRange(preset: 'today' | 'yesterday' | '7d' | 'month' | 'all') { const now = new Date(); if (preset === 'all') return {}; if (preset === 'today') return { dateFrom: dateOnly(now), dateTo: dateOnly(now) }; if (preset === 'yesterday') { const d = new Date(now); d.setDate(d.getDate() - 1); return { dateFrom: dateOnly(d), dateTo: dateOnly(d) }; } if (preset === '7d') { const d = new Date(now); d.setDate(d.getDate() - 6); return { dateFrom: dateOnly(d), dateTo: dateOnly(now) }; } const d = new Date(now.getFullYear(), now.getMonth(), 1); return { dateFrom: dateOnly(d), dateTo: dateOnly(now) }; }
 function OrdersContent({ user }: { user: CurrentUser }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [status, setStatus] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const canVoid = canVoidOrders(user);
-
-  const filteredOrders = useMemo(() => {
-    if (status === 'all') return orders;
-    return orders.filter((order) => order.status === status);
-  }, [orders, status]);
-
-  async function loadOrders() {
-    setLoading(true);
-    setError('');
-    try {
-      const result = await api.listOrders({ page: 1, pageSize: 100 });
-      setOrders(result.items);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '加载订单失败。');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  async function voidOrder(order: Order) {
-    if (!window.confirm(`确认作废订单“${order.orderNo}”？`)) return;
-    const reason = window.prompt('请输入作废原因（可留空）') ?? undefined;
-    setError('');
-    setMessage('');
-    try {
-      await api.voidOrder(order.id, reason);
-      setMessage('订单已作废。');
-      await loadOrders();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '作废订单失败。');
-    }
-  }
-
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">订单管理</h1>
-          <p className="muted">查看订单、商品快照、商户和配送员信息。订单页面不展示进价或利润。</p>
-        </div>
-      </div>
-      {error ? <p className="error">{error}</p> : null}
-      {message ? <p className="success">{message}</p> : null}
-      <div className="toolbar">
-        <select className="select" style={{ maxWidth: 180 }} value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="all">全部状态</option>
-          <option value="created">已创建</option>
-          <option value="voided">已作废</option>
-        </select>
-        <button className="ghost-button" type="button" onClick={loadOrders}>刷新</button>
-      </div>
-      {loading ? <p className="muted">正在加载订单...</p> : null}
-      {!loading && filteredOrders.length === 0 ? <div className="empty">暂无订单</div> : (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>订单号</th><th>商户</th><th>配送员</th><th>总金额</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
-            <tbody>
-              {filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td>{order.orderNo}</td>
-                  <td>{order.merchant?.name ?? '-'}</td>
-                  <td>{order.salesperson?.displayName ?? order.salesperson?.username ?? '-'}</td>
-                  <td>¥{order.totalAmount}</td>
-                  <td><span className={order.status === 'voided' ? 'badge danger' : 'badge'}>{statusLabel(order.status)}</span></td>
-                  <td>{formatDateTime(order.createdAt)}</td>
-                  <td className="actions">
-                    <Link className="plain-button" href={`/orders/${order.id}`}>详情</Link>
-                    {canVoid && order.status !== 'voided' ? <button className="plain-button" type="button" onClick={() => voidOrder(order)}>作废</button> : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </>
-  );
+  const [orders, setOrders] = useState<Order[]>([]); const [status, setStatus] = useState(''); const [dateEnabled, setDateEnabled] = useState(false); const [merchantEnabled, setMerchantEnabled] = useState(false); const [dateFrom, setDateFrom] = useState(''); const [dateTo, setDateTo] = useState(''); const [merchantKeyword, setMerchantKeyword] = useState(''); const [advancedOpen, setAdvancedOpen] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const canVoid = canVoidOrders(user);
+  async function loadOrders() { setLoading(true); setError(''); try { const result = await api.listOrders({ page: 1, pageSize: 100, dateFrom: dateEnabled ? dateFrom : undefined, dateTo: dateEnabled ? dateTo : undefined, merchantKeyword: merchantEnabled ? merchantKeyword.trim() || undefined : undefined, status: status || undefined }); setOrders(result.items); } catch (err) { setError(err instanceof Error ? err.message : '\u52a0\u8f7d\u8ba2\u5355\u5931\u8d25\u3002'); } finally { setLoading(false); } }
+  useEffect(() => { loadOrders(); }, []);
+  function applyPreset(preset: 'today' | 'yesterday' | '7d' | 'month' | 'all') { const range = presetRange(preset); if (preset === 'all') { setDateEnabled(false); setDateFrom(''); setDateTo(''); return; } setDateEnabled(true); setDateFrom(range.dateFrom || ''); setDateTo(range.dateTo || ''); }
+  async function voidOrder(order: Order) { if (!window.confirm(`\u786e\u8ba4\u4f5c\u5e9f\u8ba2\u5355\u201c${order.orderNo}\u201d\uff1f`)) return; const reason = window.prompt('\u8bf7\u8f93\u5165\u4f5c\u5e9f\u539f\u56e0\uff08\u53ef\u7559\u7a7a\uff09') ?? undefined; setError(''); setMessage(''); try { await api.voidOrder(order.id, reason); setMessage('\u8ba2\u5355\u5df2\u4f5c\u5e9f\u3002'); await loadOrders(); } catch (err) { setError(err instanceof Error ? err.message : '\u4f5c\u5e9f\u8ba2\u5355\u5931\u8d25\u3002'); } }
+  const summary = [dateEnabled && dateFrom && dateTo ? `\u65e5\u671f\uff1a${dateFrom} \u81f3 ${dateTo}` : '\u5168\u90e8\u8ba2\u5355', merchantEnabled && merchantKeyword.trim() ? `\u5546\u6237\uff1a${merchantKeyword.trim()}` : '', status ? `\u72b6\u6001\uff1a${statusLabel(status)}` : '\u72b6\u6001\uff1a\u5168\u90e8'].filter(Boolean).join('\uff1b');
+  return <><div className="page-header"><div><h1 className="page-title">{`\u8ba2\u5355\u7ba1\u7406`}</h1><p className="muted">{`\u67e5\u770b\u8ba2\u5355\u3001\u5546\u6237\u548c\u914d\u9001\u5458\u4fe1\u606f\uff1b\u4e0d\u5c55\u793a\u8fdb\u4ef7\u6216\u5229\u6da6\u3002`}</p></div></div>{error ? <p className="error">{error}</p> : null}{message ? <p className="success">{message}</p> : null}<div className="toolbar"><span className="muted">{summary}</span><button className="ghost-button" type="button" onClick={() => setAdvancedOpen((value) => !value)}>{`\u9ad8\u7ea7\u7b5b\u9009`}</button><button className="ghost-button" type="button" onClick={loadOrders}>{`\u5237\u65b0`}</button></div>{advancedOpen ? <div className="card"><div className="toolbar"><button className="ghost-button" type="button" onClick={() => applyPreset('all')}>{`\u5168\u90e8\u8ba2\u5355`}</button><button className="ghost-button" type="button" onClick={() => applyPreset('today')}>{`\u4eca\u65e5`}</button><button className="ghost-button" type="button" onClick={() => applyPreset('yesterday')}>{`\u6628\u65e5`}</button><button className="ghost-button" type="button" onClick={() => applyPreset('7d')}>{`\u8fd1 7 \u5929`}</button><button className="ghost-button" type="button" onClick={() => applyPreset('month')}>{`\u672c\u6708`}</button></div><label className="checkbox-row"><input type="checkbox" checked={dateEnabled} onChange={(event) => setDateEnabled(event.target.checked)} /> {`\u542f\u7528\u65e5\u671f\u7b5b\u9009`}</label>{dateEnabled ? <div className="toolbar"><label>{`\u5f00\u59cb\u65e5\u671f`} <input className="input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>{`\u7ed3\u675f\u65e5\u671f`} <input className="input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label></div> : null}<label className="checkbox-row"><input type="checkbox" checked={merchantEnabled} onChange={(event) => setMerchantEnabled(event.target.checked)} /> {`\u542f\u7528\u5546\u6237\u7b5b\u9009`}</label>{merchantEnabled ? <input className="input" style={{ maxWidth: 320 }} value={merchantKeyword} onChange={(event) => setMerchantKeyword(event.target.value)} placeholder="\u6309\u5546\u6237\u540d\u79f0\u641c\u7d22" /> : null}<select className="select" style={{ maxWidth: 180 }} value={status} onChange={(event) => setStatus(event.target.value)}><option value="">{`\u5168\u90e8\u72b6\u6001`}</option><option value="created">{`\u5df2\u521b\u5efa`}</option><option value="voided">{`\u5df2\u4f5c\u5e9f`}</option></select><button className="button" type="button" onClick={loadOrders}>{`\u5e94\u7528\u7b5b\u9009`}</button></div> : null}{loading ? <p className="muted">{`\u6b63\u5728\u52a0\u8f7d\u8ba2\u5355...`}</p> : null}{!loading && orders.length === 0 ? <div className="empty">{`\u6682\u65e0\u8ba2\u5355`}</div> : <div className="table-wrap"><table><thead><tr><th>{`\u8ba2\u5355\u53f7`}</th><th>{`\u5546\u6237`}</th><th>{`\u914d\u9001\u5458`}</th><th>{`\u603b\u91d1\u989d`}</th><th>{`\u72b6\u6001`}</th><th>{`\u521b\u5efa\u65f6\u95f4`}</th><th>{`\u64cd\u4f5c`}</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td>{order.orderNo}</td><td>{order.merchant?.name ?? '-'}</td><td>{order.salesperson?.displayName ?? order.salesperson?.username ?? '-'}</td><td>{order.totalAmount} {`\u5143`}</td><td><span className={order.status === 'voided' ? 'badge danger' : 'badge'}>{statusLabel(order.status)}</span></td><td>{formatDateTime(order.createdAt)}</td><td className="actions"><Link className="plain-button" href={`/orders/${order.id}`}>{`\u8be6\u60c5`}</Link>{canVoid && order.status !== 'voided' ? <button className="plain-button" type="button" onClick={() => voidOrder(order)}>{`\u4f5c\u5e9f`}</button> : null}</td></tr>)}</tbody></table></div>}</>;
 }

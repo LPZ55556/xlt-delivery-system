@@ -14,6 +14,7 @@ export type OrderListQuery = {
   pageSize?: string;
   dateFrom?: string;
   dateTo?: string;
+  merchantId?: string;
   merchantKeyword?: string;
   status?: 'created' | 'printed' | 'synced' | 'voided';
 };

@@ -37,6 +37,7 @@ function ProductsContent({ user }: { user: CurrentUser }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -48,12 +49,16 @@ function ProductsContent({ user }: { user: CurrentUser }) {
 
   const canManage = canManageProducts(user);
   const canViewCost = canViewCostPrice(user);
+  const categories = Array.from(new Set(products.map((item) => item.category).filter(Boolean))) as string[];
 
   const filteredProducts = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return products;
-    return products.filter((item) => item.name.toLowerCase().includes(keyword) || item.barcode.toLowerCase().includes(keyword));
-  }, [products, search]);
+    return products.filter((item) => {
+      const matchKeyword = !keyword || item.name.toLowerCase().includes(keyword) || item.barcode.toLowerCase().includes(keyword) || Boolean(item.category?.toLowerCase().includes(keyword));
+      const matchCategory = !categoryFilter || item.category === categoryFilter;
+      return matchKeyword && matchCategory;
+    });
+  }, [products, search, categoryFilter]);
 
   async function loadProducts() {
     setLoading(true);

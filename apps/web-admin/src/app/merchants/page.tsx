@@ -1,6 +1,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { AdminShell } from '../../components/AdminShell';
 import { RequireAuth } from '../../components/RequireAuth';

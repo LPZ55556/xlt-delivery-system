@@ -451,3 +451,13 @@ docker-compose -f docker-compose.prod.yml exec api pnpm --filter @xlt/api exec p
 ```
 
 敏感配置仍只保存在服务端本地 `.env.production` 和 `deploy/frpc.toml`，不要提交到 Git。数据库、Redis 不允许暴露公网。数据总览接口需要登录权限和进价查看安全密码，普通订单、商品、榜单和小票接口不得返回 `costPrice`。
+
+
+## Deployment Mode Selection
+
+See `docs/deployment-modes.md` for the two supported production access modes:
+
+1. FRP tunnel mode: keep using `frpc` to connect to an external `frps`.
+2. Direct public IP/domain mode: use `docker-compose.direct.yml` and expose only API/Web ports, while PostgreSQL and Redis remain private.
+
+This documentation update only prepares templates. It does not switch any running production server.

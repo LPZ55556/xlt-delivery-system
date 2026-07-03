@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import type { RequestUser } from '../../common/auth/current-user.decorator';
 import { PrismaService } from '../../database/prisma.service';
-import type { ResetCostPricePasswordRequest } from './dto';
+import type { ReceiptTemplateRequest, ResetCostPricePasswordRequest } from './dto';
 
 type RequestMeta = { ipAddress?: string; deviceInfo?: string };
 
@@ -12,6 +12,31 @@ const PASSWORD_MIN_LENGTH = 8;
 @Injectable()
 export class SystemSettingsService {
   constructor(private readonly prisma: PrismaService) {}
+
+
+
+  async getReceiptTemplate() {
+    const setting = await this.getOrCreateReceiptTemplate();
+    return this.toReceiptTemplateResponse(setting);
+  }
+
+  async updateReceiptTemplate(input: ReceiptTemplateRequest, actor: RequestUser, requestMeta?: RequestMeta) {
+    const existing = await this.getOrCreateReceiptTemplate();
+    const data: Prisma.ReceiptTemplateSettingUpdateInput = {};
+    if (input.title !== undefined) data.title = this.requiredString('title', input.title).slice(0, 60);
+    if (input.footerText !== undefined) data.footerText = this.requiredString('footerText', input.footerText).slice(0, 80);
+    if (input.paperWidthMm !== undefined) data.paperWidthMm = this.paperWidth(input.paperWidthMm);
+    if (input.showMerchantName !== undefined) data.showMerchantName = Boolean(input.showMerchantName);
+    if (input.showOrderNo !== undefined) data.showOrderNo = Boolean(input.showOrderNo);
+    if (input.showSalesperson !== undefined) data.showSalesperson = Boolean(input.showSalesperson);
+    if (input.showPrintTime !== undefined) data.showPrintTime = Boolean(input.showPrintTime);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.receiptTemplateSetting.update({ where: { id: existing.id }, data });
+      await tx.auditLog.create({ data: { actorId: actor.id, action: 'RECEIPT_TEMPLATE_UPDATED', targetType: 'system', targetId: row.id, ipAddress: requestMeta?.ipAddress, deviceInfo: requestMeta?.deviceInfo, success: true, metadata: { fields: Object.keys(data) } } });
+      return row;
+    });
+    return this.toReceiptTemplateResponse(updated);
+  }
 
   async resetCostPricePassword(input: ResetCostPricePasswordRequest, actor: RequestUser, requestMeta?: RequestMeta) {
     const currentPassword = this.requiredString('currentPassword', input.currentPassword);
@@ -50,6 +75,24 @@ export class SystemSettingsService {
     });
 
     return { updated: true };
+  }
+
+
+
+  private async getOrCreateReceiptTemplate() {
+    const existing = await this.prisma.receiptTemplateSetting.findFirst({ orderBy: { createdAt: 'asc' } });
+    if (existing) return existing;
+    return this.prisma.receiptTemplateSetting.create({ data: {} });
+  }
+
+  private paperWidth(value: string | number) {
+    const width = Number(value);
+    if (!Number.isInteger(width) || width < 40 || width > 120) throw new UnprocessableEntityException('paperWidthMm must be an integer between 40 and 120.');
+    return width;
+  }
+
+  private toReceiptTemplateResponse(setting: { id: string; title: string; paperWidthMm: number; footerText: string; showMerchantName: boolean; showOrderNo: boolean; showSalesperson: boolean; showPrintTime: boolean; updatedAt: Date }) {
+    return { id: setting.id, title: setting.title, paperWidthMm: setting.paperWidthMm, footerText: setting.footerText, showMerchantName: setting.showMerchantName, showOrderNo: setting.showOrderNo, showSalesperson: setting.showSalesperson, showPrintTime: setting.showPrintTime, updatedAt: setting.updatedAt.toISOString() };
   }
 
   private requiredString(field: string, value?: string) {

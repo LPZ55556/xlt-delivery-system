@@ -701,3 +701,14 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 - `POST /api/locations/check-in` 支持无经纬度到店确认
 
 部署更新提醒：本轮新增 Prisma migration，服务端更新代码后需要执行 `pnpm --filter @xlt/api exec prisma migrate deploy` 或在生产 API 容器内执行等价迁移命令，禁止执行 `migrate reset`。
+
+
+## Recent App and Web Updates
+
+- Android App login now supports changing the API base URL on the login page. Saving a new URL clears the old token and user session.
+- Order creation success now offers View Order, Print Receipt, and Back Home actions. Receipt printing uses the saved receipt template and default Bluetooth printer.
+- Web order management supports advanced filters for all orders, date range, merchant keyword, and status.
+- Web merchant ranking links to merchant detail pages, and merchant detail pages list that merchant's orders.
+- Web reports include a security-password protected business overview and merchant consumption ranking.
+- Web settings include receipt template configuration.
+- Deployment options are documented in `docs/deployment-modes.md`: FRP tunnel mode and direct public IP/domain mode.

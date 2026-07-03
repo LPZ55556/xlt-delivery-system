@@ -227,14 +227,14 @@ async function main() {
   const productCreate = await request('/products', {
     method: 'POST',
     headers: authHeaders(adminToken),
-    body: JSON.stringify({ name: 'Cola', barcode: '690000000001', category: '??', spec: '500ml', salePrice: '12.50', costPrice: '8.20', stock: 100 }),
+    body: JSON.stringify({ name: 'Cola', barcode: '690000000001', category: 'Beverage', spec: '500ml', salePrice: '12.50', costPrice: '8.20', stock: 100 }),
   });
   assert(productCreate.response.ok, 'product create should succeed');
   const product = productCreate.body;
   assert(!JSON.stringify(product).includes('costPrice'), 'product response must not include costPrice');
 
   const categories = await request('/products/categories', { headers: authHeaders(adminToken) });
-  assert(categories.response.ok && categories.body.items.some((item) => item.name === '??'), 'product categories should include custom category');
+  assert(categories.response.ok && categories.body.items.some((item) => item.name === 'Beverage'), 'product categories should include custom category');
 
   const badMerchantOrder = await request('/orders', {
     method: 'POST',
@@ -282,7 +282,7 @@ async function main() {
 
   const adminOrders = await request('/orders', { headers: authHeaders(adminToken) });
   assert(adminOrders.response.ok && adminOrders.body.total === 2, 'admin should see all orders');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const filteredOrders = await request(`/orders?dateFrom=${today}&dateTo=${today}&merchantKeyword=Alpha&status=created`, { headers: authHeaders(adminToken) });
   assert(filteredOrders.response.ok && filteredOrders.body.total === 2, 'orders should support date, merchant and status filters');
 
@@ -303,7 +303,7 @@ async function main() {
   assert(adminRanking.response.ok && adminRanking.body.items[0].quantitySold === 3 && adminRanking.body.items[0].salesAmount === '37.50', 'admin ranking should include all non-voided orders');
   const financeRanking = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(financeToken) });
   assert(financeRanking.response.ok && financeRanking.body.items[0].quantitySold === 3, 'finance ranking should be readable');
-  assert(adminRanking.body.items[0].category === '??', 'product ranking should include category');
+  assert(adminRanking.body.items[0].category === 'Beverage', 'product ranking should include category');
 
   const merchantRanking = await request('/reports/merchant-consumption-ranking?range=month', { headers: authHeaders(adminToken) });
   assert(merchantRanking.response.ok && merchantRanking.body.items[0].orderCount === 2 && merchantRanking.body.items[0].totalAmount === '37.50', 'merchant consumption ranking should aggregate active orders');

@@ -114,3 +114,47 @@ export type PagedResult<T> = {
   page?: number;
   pageSize?: number;
 };
+
+
+export type ProductSalesRankingItem = {
+  rank: number;
+  productId: string;
+  productName: string;
+  barcode: string;
+  category?: string | null;
+  quantitySold: number;
+  salesAmount: string;
+};
+
+export type MerchantConsumptionRankingItem = {
+  rank: number;
+  merchantId: string;
+  merchantName: string;
+  orderCount: number;
+  totalAmount: string;
+  lastOrderAt: string;
+};
+
+export type BusinessOverview = {
+  totalSalesAmount: string;
+  totalOrders: number;
+  totalProfit: string;
+  profitNote: string;
+  productSalesSummary: Array<{ productId: string; productName: string; barcode: string; category: string | null; quantitySold: number; salesAmount: string; costAmount: string; profitAmount: string }>;
+  merchantConsumptionSummary: MerchantConsumptionRankingItem[];
+  salespersonSummary: Array<{ salespersonId: string; salespersonName: string; orderCount: number; totalAmount: string }>;
+};
+
+export type ProductCategory = { name: string };
+
+export type ReceiptTemplateSetting = {
+  id: string;
+  title: string;
+  paperWidthMm: number;
+  footerText: string;
+  showMerchantName: boolean;
+  showOrderNo: boolean;
+  showSalesperson: boolean;
+  showPrintTime: boolean;
+  updatedAt: string;
+};

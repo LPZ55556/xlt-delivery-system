@@ -186,7 +186,12 @@ export class OrdersService {
 
   private async buildOrderListWhere(query: OrderListQuery, actor: RequestUser): Promise<Prisma.OrderWhereInput> {
     const where: Prisma.OrderWhereInput = { ...this.buildOrderAccessWhere(actor) };
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      if (!['created', 'printed', 'synced', 'voided'].includes(query.status)) throw new UnprocessableEntityException('status is invalid.');
+      where.status = query.status as any;
+    }
+    const merchantId = query.merchantId?.trim();
+    if (merchantId) where.merchantId = merchantId;
     const dateRange: Prisma.DateTimeFilter = {};
     if (query.dateFrom) dateRange.gte = this.parseDateStart(query.dateFrom, 'dateFrom');
     if (query.dateTo) dateRange.lte = this.parseDateEnd(query.dateTo, 'dateTo');
@@ -194,7 +199,13 @@ export class OrdersService {
     const keyword = query.merchantKeyword?.trim();
     if (keyword) {
       const merchants = await this.prisma.merchant.findMany({ where: { name: { contains: keyword, mode: 'insensitive' } }, select: { id: true } });
-      where.merchantId = { in: merchants.map((merchant) => merchant.id) };
+      const merchantIds = merchants.map((merchant) => merchant.id);
+      if (merchantId) {
+        where.AND = [{ merchantId }, { merchantId: { in: merchantIds } }];
+        delete where.merchantId;
+      } else {
+        where.merchantId = { in: merchantIds };
+      }
     }
     return where;
   }

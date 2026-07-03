@@ -235,3 +235,12 @@ adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|U
 - 商品和订单普通页面不应显示 `costPrice`、进价、利润。
 - 数据总览必须输入进价查看安全密码，密码错误应失败。
 - 小票管理默认纸宽 72mm，可改为其他毫米值。选择已配对的 `mpt-III` 后可发送 ESC/POS 测试小票；如果打印机未开机、未配对或协议不兼容，App 应显示错误而不是闪退。
+
+
+## Testing API Address Switching
+
+On the App login page, tap Change API Address, enter a URL beginning with `http://` or `https://`, test `/api/health`, and save. Saving clears the old login token. Use this when switching between the deployed API and a local server.
+
+## Testing Receipt Print After Order Creation
+
+After creating an order, tap Print Receipt. If no default printer is selected, choose it from More -> Receipt Management -> Printer Management first. The receipt must not contain cost price or profit.

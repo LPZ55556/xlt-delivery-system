@@ -505,3 +505,12 @@ Redis 不允许暴露公网。
 ## Web 后台安全密码重置
 
 当管理员忘记进价查看安全密码时，不允许找回明文密码，只允许超级管理员在 Web 后台系统设置中重置。重置需要输入当前登录密码，并提交新的进价查看安全密码。后端只保存 hash，成功和失败都写入审计日志，不在 App 端提供该功能。
+
+
+## Current Business Enhancements
+
+- Mobile order success flow includes receipt printing through the configured Bluetooth printer.
+- App login can switch API base URL without rebuilding the APK.
+- Web reports contain protected business overview data; cost and profit data require the cost-price security password.
+- Merchant consumption ranking supports longer ranges in the API (`6m`, `1y`, `all`) and links to merchant detail pages.
+- Receipt template settings include title, paper width, footer, and display toggles.
