@@ -170,6 +170,7 @@ export class OrdersService {
       orderNo: order.orderNo,
       items: order.items.map((item) => ({
         productName: item.productNameSnapshot,
+        spec: item.productSpecSnapshot,
         unitPrice: item.salePriceSnapshot.toFixed(2),
         quantity: item.quantity,
         subtotal: item.subtotalSnapshot.toFixed(2),

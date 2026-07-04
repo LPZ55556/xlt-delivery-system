@@ -244,3 +244,16 @@ On the App login page, tap Change API Address, enter a URL beginning with `http:
 ## Testing Receipt Print After Order Creation
 
 After creating an order, tap Print Receipt. If no default printer is selected, choose it from More -> Receipt Management -> Printer Management first. The receipt must not contain cost price or profit.
+
+## Testing Merchant Ranking And Receipt Layout
+
+Test merchant consumption ranking with all supported ranges: `today`, `7d`, `month`, `6m`, `1y`, and `all`. If the App shows `range must be today, 7d or month`, the server API has not been updated to the long-range ranking version.
+
+Receipt test checklist:
+
+1. In More -> Receipt Management, test paper widths `58`, `72`, and `80`.
+2. Open an order receipt preview and confirm the separator line changes with paper width.
+3. Confirm each item shows product name on one line and spec / unit price / quantity / subtotal on the next line.
+4. Confirm unit price, quantity, and subtotal are right-aligned under their columns.
+5. Confirm total uses a plain amount with yuan text and that receipts do not show `costPrice`, cost, or profit.
+6. Send a test receipt to mpt-III. If Chinese text is garbled, keep the log and add GBK/CP936 printer encoding support in the next printer-specific pass.

@@ -292,6 +292,7 @@ async function main() {
 
   const receipt = await request(`/orders/${order.id}/receipt`, { headers: authHeaders(salesToken) });
   assert(receipt.response.ok && receipt.body.totalAmount === '25.00' && receipt.body.items[0].subtotal === '25.00', 'receipt should include printable totals');
+  assert(receipt.body.items[0].spec === '500ml', 'receipt should include product spec');
   assert(!JSON.stringify(receipt.body).includes('costPrice'), 'receipt must not include costPrice');
 
   const salesRanking = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(salesToken) });
@@ -305,9 +306,21 @@ async function main() {
   assert(financeRanking.response.ok && financeRanking.body.items[0].quantitySold === 3, 'finance ranking should be readable');
   assert(adminRanking.body.items[0].category === 'Beverage', 'product ranking should include category');
 
-  const merchantRanking = await request('/reports/merchant-consumption-ranking?range=month', { headers: authHeaders(adminToken) });
-  assert(merchantRanking.response.ok && merchantRanking.body.items[0].orderCount === 2 && merchantRanking.body.items[0].totalAmount === '37.50', 'merchant consumption ranking should aggregate active orders');
-  assert(!JSON.stringify(merchantRanking.body).includes('costPrice'), 'merchant ranking must not include costPrice');
+  const merchantRanges = ['today', '7d', 'month', '6m', '1y', 'all'];
+  for (const range of merchantRanges) {
+    const merchantRanking = await request(`/reports/merchant-consumption-ranking?range=${range}`, { headers: authHeaders(adminToken) });
+    assert(merchantRanking.response.ok && merchantRanking.body.items[0].orderCount === 2 && merchantRanking.body.items[0].totalAmount === '37.50', `merchant consumption ranking should support ${range}`);
+    assert(merchantRanking.body.range === range, `merchant ranking should echo canonical ${range}`);
+    assert(!JSON.stringify(merchantRanking.body).includes('costPrice'), 'merchant ranking must not include costPrice');
+  }
+  const merchantHalfYearAlias = await request('/reports/merchant-consumption-ranking?range=halfYear', { headers: authHeaders(adminToken) });
+  assert(merchantHalfYearAlias.response.ok && merchantHalfYearAlias.body.range === '6m', 'merchant ranking should accept halfYear alias');
+  const merchantYearAlias = await request('/reports/merchant-consumption-ranking?range=year', { headers: authHeaders(adminToken) });
+  assert(merchantYearAlias.response.ok && merchantYearAlias.body.range === '1y', 'merchant ranking should accept year alias');
+  const merchantTotalAlias = await request('/reports/merchant-consumption-ranking?range=total', { headers: authHeaders(adminToken) });
+  assert(merchantTotalAlias.response.ok && merchantTotalAlias.body.range === 'all', 'merchant ranking should accept total alias');
+  const merchantBadRange = await request('/reports/merchant-consumption-ranking?range=bad', { headers: authHeaders(adminToken) });
+  assert(!merchantBadRange.response.ok, 'merchant ranking should reject invalid range');
 
   const overviewDenied = await request('/reports/business-overview?range=month', { headers: { ...authHeaders(salesToken), 'x-cost-price-password': 'CostPrice123' } });
   assert(!overviewDenied.response.ok, 'salesperson should not view business overview');
@@ -387,6 +400,8 @@ async function main() {
 
   const salesRankingAfterVoid = await request('/reports/product-sales-ranking?range=month', { headers: authHeaders(salesToken) });
   assert(salesRankingAfterVoid.response.ok && salesRankingAfterVoid.body.items.length === 0, 'voided salesperson order should not count in ranking');
+  const merchantRankingAfterVoid = await request('/reports/merchant-consumption-ranking?range=all', { headers: authHeaders(salesToken) });
+  assert(merchantRankingAfterVoid.response.ok && merchantRankingAfterVoid.body.items.length === 0, 'voided salesperson order should not count in merchant ranking');
 
   const auditRows = await prisma.auditLog.groupBy({ by: ['action', 'success'], _count: { _all: true } });
   const auditKey = new Set(auditRows.map((row) => `${row.action}:${row.success}`));

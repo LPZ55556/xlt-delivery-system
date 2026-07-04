@@ -80,26 +80,84 @@ function distanceMeters(a: TrackPoint, merchant: Merchant) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
-function receiptText(receipt: Receipt, settings: ReceiptSettings) {
+function receiptLineChars(settings: ReceiptSettings) {
+  const width = Number(settings.paperWidthMm || 72);
+  if (!Number.isFinite(width) || width <= 58) return 32;
+  if (width <= 72) return 42;
+  return 48;
+}
+function displayWidth(value: string) {
+  return Array.from(String(value ?? '')).reduce((width, char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return width + (code <= 0x7f ? 1 : 2);
+  }, 0);
+}
+function sliceByDisplayWidth(value: string, maxWidth: number) {
+  let result = '';
+  let width = 0;
+  for (const char of Array.from(String(value ?? ''))) {
+    const next = char.codePointAt(0)! <= 0x7f ? 1 : 2;
+    if (width + next > maxWidth) break;
+    result += char;
+    width += next;
+  }
+  return result;
+}
+function padRightByDisplayWidth(value: string, targetWidth: number) {
+  const clipped = sliceByDisplayWidth(value, targetWidth);
+  return clipped + ' '.repeat(Math.max(0, targetWidth - displayWidth(clipped)));
+}
+function padLeftByDisplayWidth(value: string, targetWidth: number) {
+  const clipped = sliceByDisplayWidth(value, targetWidth);
+  return ' '.repeat(Math.max(0, targetWidth - displayWidth(clipped))) + clipped;
+}
+function centerByDisplayWidth(value: string, targetWidth: number) {
+  const clipped = sliceByDisplayWidth(value, targetWidth);
+  const padding = Math.max(0, targetWidth - displayWidth(clipped));
+  const left = Math.floor(padding / 2);
+  return ' '.repeat(left) + clipped + ' '.repeat(padding - left);
+}
+function formatReceiptLines(receipt: Receipt, settings: ReceiptSettings) {
+  const lineChars = receiptLineChars(settings);
+  const line = '-'.repeat(lineChars);
+  const priceWidth = 7;
+  const quantityWidth = 4;
+  const subtotalWidth = 8;
+  const specWidth = Math.max(8, lineChars - priceWidth - quantityWidth - subtotalWidth - 3);
+  const specLabel = '\u89c4\u683c';
   const lines = [
-    settings.title || '销售单',
-    `商户：${receipt.storeName}`,
-    `订单：${receipt.orderNo}`,
-    `时间：${formatDateTime(receipt.dateTime)}`,
-    `配送员：${receipt.salespersonName}`,
-    '------------------------------',
-    '商品名称        单价  数量  合计',
-    ...receipt.items.map((item) => `${item.productName}\n  ${item.unitPrice}  x${item.quantity}  ${item.subtotal}`),
-    '------------------------------',
-    `总计：${receipt.totalAmount} 元`,
-    settings.footer || '谢谢惠顾',
+    centerByDisplayWidth(settings.title || '\u9500\u552e\u5355', lineChars),
     '',
-    '',
+    `\u5546\u6237\uff1a${receipt.storeName || '\u672a\u77e5\u5546\u6237'}`,
+    `\u8ba2\u5355\uff1a${receipt.orderNo}`,
+    `\u65f6\u95f4\uff1a${formatDateTime(receipt.dateTime)}`,
+    `\u914d\u9001\u5458\uff1a${receipt.salespersonName || '-'}`,
+    line,
+    '\u5546\u54c1\u540d\u79f0',
+    `${padRightByDisplayWidth(specLabel, specWidth)} ${padLeftByDisplayWidth('\u5355\u4ef7', priceWidth)} ${padLeftByDisplayWidth('\u6570\u91cf', quantityWidth)} ${padLeftByDisplayWidth('\u5408\u8ba1', subtotalWidth)}`,
+    line,
   ];
-  return lines.join('\n');
+  for (const item of receipt.items) {
+    lines.push(sliceByDisplayWidth(item.productName || '\u672a\u77e5\u5546\u54c1', lineChars));
+    const spec = item.spec?.trim() || '-';
+    lines.push(`${padRightByDisplayWidth(spec, specWidth)} ${padLeftByDisplayWidth(item.unitPrice || '0.00', priceWidth)} ${padLeftByDisplayWidth(String(item.quantity ?? 0), quantityWidth)} ${padLeftByDisplayWidth(item.subtotal || '0.00', subtotalWidth)}`);
+  }
+  lines.push(line);
+  lines.push(padLeftByDisplayWidth(`\u603b\u8ba1\uff1a${receipt.totalAmount || '0.00'} \u5143`, lineChars));
+  lines.push('');
+  lines.push(centerByDisplayWidth(settings.footer || '\u8c22\u8c22\u60e0\u987e', lineChars));
+  lines.push('');
+  lines.push('');
+  return lines;
+}
+function receiptText(receipt: Receipt, settings: ReceiptSettings) {
+  return formatReceiptLines(receipt, settings).join('\n');
+}
+function receiptPreviewWidth(settings: ReceiptSettings) {
+  return receiptLineChars(settings) * 8;
 }
 function testReceiptText(settings: ReceiptSettings) {
-  return receiptText({ storeName: 'mpt-III', salespersonName: '销售通', dateTime: new Date().toISOString(), orderNo: 'TEST', items: [{ productName: '测试商品', unitPrice: '1.00', quantity: 1, subtotal: '1.00' }], totalAmount: '1.00' }, { ...settings, title: '销售通打印测试' });
+  return receiptText({ storeName: 'mpt-III', salespersonName: '\u9500\u552e\u901a', dateTime: new Date().toISOString(), orderNo: 'TEST', items: [{ productName: '\u6d4b\u8bd5\u5546\u54c1', spec: '58mm', unitPrice: '1.00', quantity: 1, subtotal: '1.00' }], totalAmount: '1.00' }, { ...settings, title: '\u9500\u552e\u901a\u6253\u5370\u6d4b\u8bd5' });
 }
 async function searchAmapPois(keyword: string): Promise<AmapPoi[]> {
   if (!AMAP_WEB_SERVICE_KEY) throw new Error('未配置高德 Key，请先配置 AMAP_WEB_SERVICE_KEY。');
@@ -375,9 +433,10 @@ function OrderDetailScreen({ orderId, onBack, onHome, onPrint }: { orderId: stri
 }
 
 function ReceiptPreview({ receipt }: { receipt: Receipt }) {
-  const [settings, setSettings] = useState<ReceiptSettings>({ title: '销售单', paperWidthMm: '72', footer: '谢谢惠顾', printer: null });
+  const [settings, setSettings] = useState<ReceiptSettings>({ title: '\u9500\u552e\u5355', paperWidthMm: '72', footer: '\u8c22\u8c22\u60e0\u987e', printer: null });
   useEffect(() => { getReceiptSettings().then(setSettings); }, []);
-  return <View style={styles.receipt}><Text style={styles.receiptTitle}>{settings.title || '销售单'}</Text><Text style={styles.mutedText}>商户：{receipt.storeName}</Text><Text style={styles.mutedText}>配送员：{receipt.salespersonName}</Text><Text style={styles.mutedText}>时间：{formatDateTime(receipt.dateTime)} · 订单号：{receipt.orderNo}</Text><View style={styles.receiptLine}><Text style={[styles.flex1, styles.cardTitle]}>商品名称</Text><Text style={styles.cardTitle}>单价</Text><Text style={styles.cardTitle}>数量</Text><Text style={styles.cardTitle}>合计</Text></View>{receipt.items.map((item, index) => <View style={styles.receiptLine} key={`${item.productName}-${index}`}><Text style={styles.flex1}>{item.productName}</Text><Text>{item.unitPrice}</Text><Text>{item.quantity}</Text><Text>{item.subtotal}</Text></View>)}<View style={styles.receiptLine}><Text style={styles.cardTitle}>总计</Text><Text style={styles.cardTitle}>{receipt.totalAmount} 元</Text></View><Text style={styles.description}>{settings.footer || '谢谢惠顾'}</Text><Text style={styles.mutedText}>纸宽：{settings.paperWidthMm || '72'}mm</Text></View>;
+  const text = formatReceiptLines(receipt, settings).join('\n');
+  return <View style={[styles.receipt, { maxWidth: receiptPreviewWidth(settings) }]}><Text style={styles.receiptMonospace}>{text}</Text></View>;
 }
 
 function ScannerScreen({ mode, onScanned, onBack }: { mode: ScannerMode; onScanned: (code: string) => Promise<void>; onBack: () => void }) {
@@ -527,9 +586,10 @@ const styles = StyleSheet.create({
   totalBar: { alignItems: 'center', backgroundColor: '#fff', borderColor: '#dfe4ec', borderRadius: 8, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, padding: 14 },
   totalLabel: { color: '#172033', fontSize: 18, fontWeight: '700' },
   totalValue: { color: '#0f766e', fontSize: 20, fontWeight: '700' },
-  receipt: { backgroundColor: '#fff', borderColor: '#cfd6e4', borderRadius: 8, borderWidth: 1, marginTop: 12, padding: 14 },
+  receipt: { alignSelf: 'center', backgroundColor: '#fff', borderColor: '#cfd6e4', borderRadius: 8, borderWidth: 1, marginTop: 12, padding: 14, width: '100%' },
   receiptTitle: { color: '#172033', fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
   receiptLine: { borderBottomColor: '#dfe4ec', borderBottomWidth: 1, flexDirection: 'row', gap: 12, justifyContent: 'space-between', paddingVertical: 8 },
+  receiptMonospace: { color: '#172033', fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier', fontSize: 13, lineHeight: 20 },
   pageTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 12, marginBottom: 10 },
   linkText: { color: '#0f766e', fontWeight: '700' },
   loadingBox: { alignItems: 'center', gap: 8, padding: 18 },

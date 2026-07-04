@@ -514,3 +514,10 @@ Redis 不允许暴露公网。
 - Web reports contain protected business overview data; cost and profit data require the cost-price security password.
 - Merchant consumption ranking supports longer ranges in the API (`6m`, `1y`, `all`) and links to merchant detail pages.
 - Receipt template settings include title, paper width, footer, and display toggles.
+
+## Merchant Ranking And Receipt Layout Notes
+
+- Merchant consumption ranking range values are `today`, `7d`, `month`, `6m`, `1y`, and `all`.
+- `all` has no date boundary; all ranking ranges count only non-voided orders and do not expose cost or profit data.
+- Receipts include product name, spec, unit price, quantity, subtotal, and total. Empty specs should render as `-`, never `undefined`, `null`, or stray question marks.
+- Thermal receipt layout uses dynamic line width: 58mm = 32 chars, 72mm = 42 chars, 80mm = 48 chars. Chinese display width is treated as two columns when aligning numeric fields.

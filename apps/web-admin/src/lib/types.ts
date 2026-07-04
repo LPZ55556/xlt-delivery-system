@@ -101,6 +101,7 @@ export type Receipt = {
   orderNo: string;
   items: Array<{
     productName: string;
+    spec?: string | null;
     unitPrice: string;
     quantity: number;
     subtotal: string;

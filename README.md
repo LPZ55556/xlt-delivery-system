@@ -695,7 +695,7 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 
 - `GET /api/orders?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&merchantKeyword=xxx&status=created`
 - `GET /api/products/categories`
-- `GET /api/reports/merchant-consumption-ranking?range=today|7d|month&limit=20`
+- `GET /api/reports/merchant-consumption-ranking?range=today|7d|month|6m|1y|all&limit=20`
 - `POST /api/reports/overview/verify`
 - `GET /api/reports/business-overview?range=today|7d|month`，需请求头 `x-cost-price-password`
 - `POST /api/locations/check-in` 支持无经纬度到店确认
@@ -712,3 +712,13 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 - Web reports include a security-password protected business overview and merchant consumption ranking.
 - Web settings include receipt template configuration.
 - Deployment options are documented in `docs/deployment-modes.md`: FRP tunnel mode and direct public IP/domain mode.
+
+## Merchant Ranking Ranges And Receipt Layout
+
+- Merchant consumption ranking uses `GET /api/reports/merchant-consumption-ranking` with canonical `range` values: `today`, `7d`, `month`, `6m`, `1y`, `all`.
+- Backward-compatible aliases are accepted by the API: `halfYear -> 6m`, `year -> 1y`, `total -> all`. Responses echo the canonical range.
+- `all` does not apply a date limit. Rankings count only non-voided orders. `salesperson` users see only their own data; `admin`, `super_admin`, and `finance` can see all data.
+- Mobile receipt preview and Bluetooth receipt printing share the same formatter. Paper width maps to line characters as follows: 58mm = 32 chars, 72mm = 42 chars, 80mm = 48 chars. Other widths use `<=58`, `<=72`, `>72` buckets.
+- Receipt item layout is two-line: product name on the first line, then spec / unit price / quantity / subtotal on the second line. Chinese text is measured as double-width for alignment.
+- Receipt data includes item `spec`, but still never returns or prints `costPrice`, cost, or profit. Total uses `xx.xx yuan` display in plain text.
+- mpt-III printing currently uses Classic Bluetooth SPP plus ESC/POS text output. If a specific printer renders Chinese incorrectly, add GBK/CP936 encoding support in a follow-up.
