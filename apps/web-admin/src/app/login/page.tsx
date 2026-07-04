@@ -43,7 +43,7 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <h1 className="page-title">小灵通管理后台</h1>
+        <h1 className="page-title">源源食品管理后台</h1>
         <p className="muted">请输入账号和密码登录。</p>
         <form className="form" onSubmit={handleSubmit}>
           <label className="form-row">

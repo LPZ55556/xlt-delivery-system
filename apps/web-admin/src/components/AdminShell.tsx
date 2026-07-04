@@ -37,7 +37,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">小灵通管理后台</div>
+        <div className="brand">{'源源食品管理后台'}</div>
         <nav className="nav" aria-label="后台导航">
           {navItems.map(([label, href]) => (
             <Link className={pathname === href || pathname.startsWith(`${href}/`) ? 'active' : ''} key={href} href={href}>{label}</Link>

@@ -3,6 +3,8 @@ import type { BusinessOverview, CurrentUser, ManagedUser, Merchant, MerchantCons
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
 
+type RankingRange = 'today' | '7d' | 'month' | '6m' | '1y' | 'all';
+
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   query?: Record<string, string | number | boolean | null | undefined>;
@@ -142,7 +144,7 @@ export const api = {
   productSalesRanking: (range: 'today' | '7d' | 'month') => apiRequest<{ range: string; items: ProductSalesRankingItem[] }>('/api/reports/product-sales-ranking', { query: { range, limit: 20 } }),
   merchantConsumptionRanking: (range: 'today' | '7d' | 'month' | '6m' | '1y' | 'all') => apiRequest<{ range: string; items: MerchantConsumptionRankingItem[] }>('/api/reports/merchant-consumption-ranking', { query: { range, limit: 50 } }),
   verifyOverview: (costPricePassword: string) => apiRequest<{ verified: boolean }>('/api/reports/overview/verify', { method: 'POST', body: { costPricePassword } }),
-  businessOverview: (range: 'today' | '7d' | 'month', costPricePassword: string) => apiRequest<BusinessOverview>('/api/reports/business-overview', { headers: { 'x-cost-price-password': costPricePassword }, query: { range } }),
+  businessOverview: (range: RankingRange, costPricePassword: string) => apiRequest<BusinessOverview>('/api/reports/business-overview', { headers: { 'x-cost-price-password': costPricePassword }, query: { range } }),
   getReceiptTemplate: () => apiRequest<ReceiptTemplateSetting>('/api/system-settings/receipt-template'),
   updateReceiptTemplate: (body: Partial<Omit<ReceiptTemplateSetting, 'id' | 'updatedAt'>>) => apiRequest<ReceiptTemplateSetting>('/api/system-settings/receipt-template', { method: 'PATCH', body }),
   listOrders: (query?: { page?: number; pageSize?: number; dateFrom?: string; dateTo?: string; merchantId?: string; merchantKeyword?: string; status?: string }) => apiRequest<PagedResult<Order>>('/api/orders', { query }),

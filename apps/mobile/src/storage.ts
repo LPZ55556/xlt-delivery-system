@@ -10,7 +10,7 @@ export async function getAccessToken() { return AsyncStorage.getItem(TOKEN_KEY);
 export async function getStoredUser(): Promise<CurrentUser | null> { const raw = await AsyncStorage.getItem(USER_KEY); if (!raw) return null; try { return JSON.parse(raw) as CurrentUser; } catch { await AsyncStorage.removeItem(USER_KEY); return null; } }
 export async function saveSession(accessToken: string, user: CurrentUser) { await AsyncStorage.multiSet([[TOKEN_KEY, accessToken], [USER_KEY, JSON.stringify(user)]]); }
 export async function clearSession() { await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]); }
-export async function getReceiptSettings(): Promise<ReceiptSettings> { const defaults: ReceiptSettings = { title: '销售单', paperWidthMm: '72', footer: '谢谢惠顾', printer: null }; const raw = await AsyncStorage.getItem(RECEIPT_SETTINGS_KEY); if (!raw) return defaults; try { return { ...defaults, ...(JSON.parse(raw) as Partial<ReceiptSettings>) }; } catch { return defaults; } }
+export async function getReceiptSettings(): Promise<ReceiptSettings> { const defaults: ReceiptSettings = { title: '源源食品销售单', paperWidthMm: '72', footer: '\u8c22\u8c22\u60e0\u987e', printer: null }; const raw = await AsyncStorage.getItem(RECEIPT_SETTINGS_KEY); if (!raw) return defaults; try { return { ...defaults, ...(JSON.parse(raw) as Partial<ReceiptSettings>) }; } catch { return defaults; } }
 export async function saveReceiptSettings(settings: ReceiptSettings) { await AsyncStorage.setItem(RECEIPT_SETTINGS_KEY, JSON.stringify(settings)); }
 export async function saveDefaultPrinter(printer: PrinterDevice) { const settings = await getReceiptSettings(); await saveReceiptSettings({ ...settings, printer }); }
 

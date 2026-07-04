@@ -2,12 +2,12 @@
 
 ## 一、项目名称
 
-智慧配送解决方案
+源源食品
 
 App 名称：
 
 ```text
-小灵通
+源源食品
 ```
 
 Android 包名：
@@ -491,9 +491,9 @@ Redis 不允许暴露公网。
 
 第一阶段不要一次性实现完整业务。
 
-## 销售通移动端 MVP 调整
+## 源源食品移动端 MVP 调整
 
-- App 显示名称调整为“销售通”，包名继续使用 `com.xlt.delivery`，避免影响升级、权限和高德 Key 绑定。
+- App 显示名称调整为“源源食品”，包名继续使用 `com.xlt.delivery`，避免影响升级、权限和高德 Key 绑定。
 - App 主导航改为“首页 / 订单 / 开单 / 更多 / 设置”，配送轨迹功能从 App 主入口移除，后端历史位置表和接口可保留用于兼容和后续扩展。
 - 到店确认只记录业务动作，不再按距离判断是否允许确认；定位可用时附带经纬度，定位不可用时仍允许确认。
 - 开单商户列表可按手机当前位置到商户坐标的 Haversine 距离排序；该距离仅作展示和排序参考，不作为后端可信规则。
@@ -521,3 +521,12 @@ Redis 不允许暴露公网。
 - `all` has no date boundary; all ranking ranges count only non-voided orders and do not expose cost or profit data.
 - Receipts include product name, spec, unit price, quantity, subtotal, and total. Empty specs should render as `-`, never `undefined`, `null`, or stray question marks.
 - Thermal receipt layout uses dynamic line width: 58mm = 32 chars, 72mm = 42 chars, 80mm = 48 chars. Chinese display width is treated as two columns when aligning numeric fields.
+
+
+## 源源食品名称与数据总览范围
+
+- User-visible App/Web name is 源源食品, Android package remains `com.xlt.delivery`, and React Native registry remains `XltDelivery`.
+- Business overview ranges: `today`, `7d`, `month`, `6m`, `1y`, `all`.
+- Android launcher icons are generated from project-root `icon.png`; APK/AAB outputs are not committed.
+- Standalone APK build: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone`.
+- Production Web/API update rebuilds project containers only and does not modify `.env.production` or `deploy/frpc.toml`. No migration was added in this round.

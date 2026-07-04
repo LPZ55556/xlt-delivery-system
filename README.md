@@ -1,6 +1,6 @@
-# 智慧配送解决方案
+# 源源食品
 
-智慧配送解决方案是一套面向货物配送商的配送开单管理系统。App 名称为“小灵通”，Android 包名为 `com.xlt.delivery`。
+源源食品是一套面向货物配送商的配送开单管理系统。App 名称为“源源食品”，Android 包名为 `com.xlt.delivery`。
 
 系统包含 Android App、Web 管理后台、NestJS 后端 API、PostgreSQL、Redis 和 FRP 本地服务器穿透部署模板。
 
@@ -386,7 +386,7 @@ Web 后台新增 `/users` 用户管理页面，左侧菜单仅对 `super_admin` 
 
 ## Android App 最小开单闭环
 
-`apps/mobile` 当前沿用 React Native CLI 技术栈，App 名称为“小灵通”，Android 包名为 `com.xlt.delivery`。
+`apps/mobile` 当前沿用 React Native CLI 技术栈，App 名称为“源源食品”，Android 包名为 `com.xlt.delivery`。
 
 当前 App 已实现：
 
@@ -455,7 +455,7 @@ Android 真机/模拟器构建需要本机安装 Android SDK、Gradle/JDK 环境
 
 ## Android debug APK 构建准备
 
-`apps/mobile` 已确认为 React Native CLI 项目，保留现有 App 页面和 API client，并补齐 Android 原生工程构建入口。Android `applicationId` / `namespace` 为 `com.xlt.delivery`，App 显示名称为“小灵通”。
+`apps/mobile` 已确认为 React Native CLI 项目，保留现有 App 页面和 API client，并补齐 Android 原生工程构建入口。Android `applicationId` / `namespace` 为 `com.xlt.delivery`，App 显示名称为“源源食品”。
 
 移动端构建脚本：
 
@@ -678,9 +678,9 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 
 如果 App 可以打开但登录失败，先确认 Web 后台已完成首次初始化，并已创建 `salesperson` 配送员账号。若商户或商品为空，先在 Web 后台创建至少 1 个启用商户和 1 个启用商品。
 
-## Android App 销售通移动端调整
+## Android App 源源食品移动端调整
 
-- App 桌面显示名称已从“小灵通”调整为“销售通”，Android 包名、applicationId、namespace 仍保持 `com.xlt.delivery`。
+- App 桌面显示名称已从“源源食品”调整为“源源食品”，Android 包名、applicationId、namespace 仍保持 `com.xlt.delivery`。
 - 底部导航调整为：首页、订单、开单、更多、设置；App 端暂时移除配送轨迹入口，保留到店确认能力。
 - “更多”页面集中放置：数据总览、商户消费榜单、商品管理、商户管理、小票管理、商品销量排行。
 - 订单列表支持 `dateFrom`、`dateTo`、`merchantKeyword`、`status` 筛选；配送员仍只能查看自己的订单。
@@ -722,3 +722,12 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 - Receipt item layout is two-line: product name on the first line, then spec / unit price / quantity / subtotal on the second line. Chinese text is measured as double-width for alignment.
 - Receipt data includes item `spec`, but still never returns or prints `costPrice`, cost, or profit. Total uses `xx.xx yuan` display in plain text.
 - mpt-III printing currently uses Classic Bluetooth SPP plus ESC/POS text output. If a specific printer renders Chinese incorrectly, add GBK/CP936 encoding support in a follow-up.
+
+
+## 源源食品名称与数据总览范围
+
+- User-visible App/Web name is 源源食品, Android package remains `com.xlt.delivery`, and React Native registry remains `XltDelivery`.
+- Business overview ranges: `today`, `7d`, `month`, `6m`, `1y`, `all`.
+- Android launcher icons are generated from project-root `icon.png`; APK/AAB outputs are not committed.
+- Standalone APK build: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone`.
+- Production Web/API update rebuilds project containers only and does not modify `.env.production` or `deploy/frpc.toml`. No migration was added in this round.

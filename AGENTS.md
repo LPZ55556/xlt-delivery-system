@@ -2,7 +2,7 @@
 
 ## 项目说明
 
-这是一个智慧配送解决方案，包含 Android App、Web 后台、NestJS API、PostgreSQL、Redis 和 FRP 部署模板。
+这是一个源源食品，包含 Android App、Web 后台、NestJS API、PostgreSQL、Redis 和 FRP 部署模板。
 
 ## 工作方式
 

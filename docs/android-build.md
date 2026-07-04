@@ -1,6 +1,6 @@
 # Android debug 构建说明
 
-本项目移动端位于 `apps/mobile`，当前使用 React Native CLI 技术栈。Android App 名称为“小灵通”，`applicationId` / `namespace` 为 `com.xlt.delivery`。
+本项目移动端位于 `apps/mobile`，当前使用 React Native CLI 技术栈。Android App 名称为“源源食品”，`applicationId` / `namespace` 为 `com.xlt.delivery`。
 
 ## 1. Ubuntu 开发机安装 Android SDK
 
@@ -310,7 +310,7 @@ adb shell am start -n com.xlt.delivery/.MainActivity
 
 当前生产 API 仍是 HTTP，Android Manifest 已允许明文 HTTP。上线前应切换 HTTPS 并收紧明文访问策略。
 
-## 销售通 standalone APK 构建补充
+## 源源食品 standalone APK 构建补充
 
 构建连接服务端 API 的 standalone APK：
 
@@ -325,7 +325,7 @@ APK 产物路径：
 apps/mobile/android/app/build/outputs/apk/standalone/app-standalone.apk
 ```
 
-本轮 App 名称为“销售通”，包名仍为 `com.xlt.delivery`。不要提交 APK、AAB、keystore、JKS、Gradle 缓存或 `local.properties`。
+本轮 App 名称为“源源食品”，包名仍为 `com.xlt.delivery`。不要提交 APK、AAB、keystore、JKS、Gradle 缓存或 `local.properties`。
 
 蓝牙热敏打印需要 Android 蓝牙权限。Android 12+ 会请求 `BLUETOOTH_CONNECT` / `BLUETOOTH_SCAN`，Android 11 及以下使用传统蓝牙权限。打印机需先在手机系统蓝牙中配对，App 内“更多 -> 小票管理 -> 打印机管理”会列出已配对设备并可选择 `mpt-III`。小票纸宽默认 72mm，可在 App 内按毫米自定义。
 
@@ -337,3 +337,12 @@ The default API is injected at build time with `MOBILE_API_BASE_URL`, but the lo
 ```bash
 MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone
 ```
+
+
+## 源源食品名称与数据总览范围
+
+- User-visible App/Web name is 源源食品, Android package remains `com.xlt.delivery`, and React Native registry remains `XltDelivery`.
+- Business overview ranges: `today`, `7d`, `month`, `6m`, `1y`, `all`.
+- Android launcher icons are generated from project-root `icon.png`; APK/AAB outputs are not committed.
+- Standalone APK build: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone`.
+- Production Web/API update rebuilds project containers only and does not modify `.env.production` or `deploy/frpc.toml`. No migration was added in this round.

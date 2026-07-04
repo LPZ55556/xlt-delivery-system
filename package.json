@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.4",
-  "description": "智慧配送解决方案 monorepo",
+  "description": "源源食品 monorepo",
   "scripts": {
     "dev:api": "pnpm --filter @xlt/api dev",
     "dev:web": "pnpm --filter @xlt/web-admin dev",

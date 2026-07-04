@@ -1,4 +1,4 @@
-# 智慧配送解决方案开发前配置清单（修订版）
+# 源源食品开发前配置清单（修订版）
 
 > 本修订版按“四台设备分工”整理：Windows 控制机、Ubuntu 开发机、Ubuntu 服务端、阿里云穿透端。
 > 明文密码、frp token、数据库密码、JWT 密钥、高德 Key 等敏感内容不得写入 Git 仓库，统一通过 `.env` / 环境变量 / 机器本地配置管理。
@@ -6,7 +6,7 @@
 
 ## 1. 项目基础信息
 
-项目名称：智慧配送解决方案
+项目名称：源源食品
 
 GitHub 仓库地址：`https://github.com/LPZ55556/xlt-delivery-system`
 
@@ -95,13 +95,13 @@ PostgreSQL 和 Redis 只允许本地服务访问，不开放到公网。
 
 Android App 包名：`com.xlt.delivery`
 
-App 名称：`小灵通`
+App 名称：`源源食品`
 
 API_BASE_URL：通过 `MOBILE_API_BASE_URL` 或 `API_BASE_URL` 配置。
 
 高德 Android Key：通过环境变量 `AMAP_ANDROID_KEY` 或构建配置注入，真实 Key 不写入项目文档和代码仓库。
 
-后台名称：小灵通管理后台
+后台名称：源源食品管理后台
 
 管理员账号、管理员密码和进价查看安全密码通过首次初始化流程设置，不在环境变量中预置明文密码。
 

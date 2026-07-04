@@ -1,6 +1,6 @@
 # Android 真机调试说明
 
-本说明用于在 Ubuntu 开发机上验证“小灵通” React Native debug APK。当前只覆盖调试启动链路，不接入扫码、定位或蓝牙打印。
+本说明用于在 Ubuntu 开发机上验证“源源食品” React Native debug APK。当前只覆盖调试启动链路，不接入扫码、定位或蓝牙打印。
 
 ## 1. 启动 Metro
 
@@ -214,7 +214,7 @@ sleep 8
 adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|Unable to load script|Network request failed|api.lnize.top|xlt.delivery|fetch|TypeError|HTTP|Cleartext|CLEARTEXT"
 ```
 
-## 销售通真机测试补充
+## 源源食品真机测试补充
 
 推荐真机测试顺序：
 
@@ -230,7 +230,7 @@ adb logcat -d -v time | grep -iE "AndroidRuntime|FATAL EXCEPTION|ReactNativeJS|U
 
 检查点：
 
-- 桌面名称应显示“销售通”。
+- 桌面名称应显示“源源食品”。
 - 底部导航应为：首页、订单、开单、更多、设置，不再显示轨迹。
 - 商品和订单普通页面不应显示 `costPrice`、进价、利润。
 - 数据总览必须输入进价查看安全密码，密码错误应失败。
@@ -257,3 +257,12 @@ Receipt test checklist:
 4. Confirm unit price, quantity, and subtotal are right-aligned under their columns.
 5. Confirm total uses a plain amount with yuan text and that receipts do not show `costPrice`, cost, or profit.
 6. Send a test receipt to mpt-III. If Chinese text is garbled, keep the log and add GBK/CP936 printer encoding support in the next printer-specific pass.
+
+
+## 源源食品名称与数据总览范围
+
+- User-visible App/Web name is 源源食品, Android package remains `com.xlt.delivery`, and React Native registry remains `XltDelivery`.
+- Business overview ranges: `today`, `7d`, `month`, `6m`, `1y`, `all`.
+- Android launcher icons are generated from project-root `icon.png`; APK/AAB outputs are not committed.
+- Standalone APK build: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone`.
+- Production Web/API update rebuilds project containers only and does not modify `.env.production` or `deploy/frpc.toml`. No migration was added in this round.

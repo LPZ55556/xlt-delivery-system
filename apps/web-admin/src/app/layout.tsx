@@ -2,8 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '小灵通管理后台',
-  description: '智慧配送解决方案 Web 管理后台',
+  title: '源源食品管理后台',
+  description: '源源食品 Web 管理后台',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -461,3 +461,12 @@ See `docs/deployment-modes.md` for the two supported production access modes:
 2. Direct public IP/domain mode: use `docker-compose.direct.yml` and expose only API/Web ports, while PostgreSQL and Redis remain private.
 
 This documentation update only prepares templates. It does not switch any running production server.
+
+
+## 源源食品名称与数据总览范围
+
+- User-visible App/Web name is 源源食品, Android package remains `com.xlt.delivery`, and React Native registry remains `XltDelivery`.
+- Business overview ranges: `today`, `7d`, `month`, `6m`, `1y`, `all`.
+- Android launcher icons are generated from project-root `icon.png`; APK/AAB outputs are not committed.
+- Standalone APK build: `MOBILE_API_BASE_URL=http://api.lnize.top:8080 pnpm --filter @xlt/mobile build:android:standalone`.
+- Production Web/API update rebuilds project containers only and does not modify `.env.production` or `deploy/frpc.toml`. No migration was added in this round.

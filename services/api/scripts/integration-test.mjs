@@ -330,6 +330,13 @@ async function main() {
   assert(!overviewVerifyWrong.response.ok, 'overview verify should reject wrong security password');
   const overviewVerify = await request('/reports/overview/verify', { method: 'POST', headers: authHeaders(adminToken), body: JSON.stringify({ costPricePassword: 'CostPrice123' }) });
   assert(overviewVerify.response.ok && overviewVerify.body.verified === true, 'overview verify should accept correct security password');
+  const overviewRanges = ['today', '7d', 'month', '6m', '1y', 'all'];
+  for (const range of overviewRanges) {
+    const rangedOverview = await request(`/reports/business-overview?range=${range}`, { headers: { ...authHeaders(adminToken), 'x-cost-price-password': 'CostPrice123' } });
+    assert(rangedOverview.response.ok && rangedOverview.body.totalOrders >= 1, `business overview should support ${range}`);
+  }
+  const badOverviewRange = await request('/reports/business-overview?range=bad', { headers: { ...authHeaders(adminToken), 'x-cost-price-password': 'CostPrice123' } });
+  assert(!badOverviewRange.response.ok, 'business overview should reject invalid range');
   const overview = await request('/reports/business-overview?range=month', { headers: { ...authHeaders(adminToken), 'x-cost-price-password': 'CostPrice123' } });
   assert(overview.response.ok && overview.body.totalSalesAmount === '37.50' && overview.body.totalProfit === '12.90', 'business overview should include protected sales and profit totals');
   assert(JSON.stringify(overview.body).includes('costAmount'), 'overview should include protected cost data');
